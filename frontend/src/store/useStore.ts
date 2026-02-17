@@ -1,22 +1,62 @@
 import { create } from "zustand";
 import { refreshToken } from "../api";
 
+type Role = "user" | "moderator" | "admin" | null;
+
 interface AppState {
   isAuth: boolean;
   token: string | null;
+  role: Role;
+
   theme: "light" | "dark";
+
+  setAuth: (token: string, role: Role) => void;
+  logout: () => void;
+
   setIsAuth: (auth: boolean, token?: string) => void;
   setToken: (token: string | null) => void;
+
   toggleTheme: () => void;
   startTokenRefreshLoop: () => void;
 }
 
-let refreshInterval: NodeJS.Timeout | null = null;
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 export const useStore = create<AppState>((set, get) => ({
   isAuth: !!localStorage.getItem("token"),
   token: localStorage.getItem("token"),
+  role: (localStorage.getItem("role") as Role) || null,
+
   theme: (localStorage.getItem("theme") as "light" | "dark") || "light",
+
+  // 🔐 NEW — login helper
+  setAuth: (token, role) => {
+    localStorage.setItem("token", token);
+    if (role) localStorage.setItem("role", role);
+
+    set({
+      isAuth: true,
+      token,
+      role,
+    });
+  },
+
+  // 🚪 NEW — logout helper
+  logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+
+    set({
+      isAuth: false,
+      token: null,
+      role: null,
+    });
+  },
 
   setIsAuth: (auth, token) => {
     if (auth && token) {
@@ -24,8 +64,14 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isAuth: true, token });
     } else {
       localStorage.removeItem("token");
-      set({ isAuth: false, token: null });
-      if (refreshInterval) clearInterval(refreshInterval);
+      localStorage.removeItem("role");
+
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
+
+      set({ isAuth: false, token: null, role: null });
     }
   },
 
@@ -35,7 +81,8 @@ export const useStore = create<AppState>((set, get) => ({
       set({ token });
     } else {
       localStorage.removeItem("token");
-      set({ token: null });
+      localStorage.removeItem("role");
+      set({ token: null, role: null });
     }
   },
 
@@ -47,18 +94,20 @@ export const useStore = create<AppState>((set, get) => ({
       return { theme: newTheme };
     });
   },
-
   startTokenRefreshLoop: () => {
     if (refreshInterval) return;
+
     refreshInterval = setInterval(
       async () => {
-        if (!localStorage.getItem("token")) return;
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
         try {
           const res = await refreshToken();
           const newToken = res.data.token;
           get().setToken(newToken);
         } catch {
-          get().setIsAuth(false);
+          get().logout();
           window.location.replace("/login");
         }
       },

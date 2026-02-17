@@ -20,6 +20,7 @@ class UserFactory extends Factory
             'name' => $this->faker->name(),
             'email' => $this->faker->unique()->safeEmail(),
             'password' => $password,
+            'role' => 'user', // 👈 default role
             'created_at' => now(),
             'updated_at' => now(),
         ];

@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,12 +18,14 @@ class AuthController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:6|confirmed',
+            'role' => 'required|in:user,moderator',
         ]);
 
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => bcrypt($data['password']),
+            'role' => $data['role'],
         ]);
 
         $token = auth('api')->login($user);
@@ -144,8 +146,21 @@ public function refresh() {
         return response()->json(['message' => 'Password has been reset successfully']);
     }
 
-    // --- GET CURRENT USER ---
+      // --- GET CURRENT USER ---
     public function me() {
-        return response()->json(auth()->user());
+     return response()->json([
+        'id' => auth()->id(),
+        'name' => auth()->user()->name,
+        'email' => auth()->user()->email,
+        'role' => auth()->user()->role,
+     ]);
     }
+
+    public function getJWTCustomClaims() {
+       return [
+        'role' => $this->role
+    ];
+
+}
+
 }

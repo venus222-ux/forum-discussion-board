@@ -1,0 +1,93 @@
+🚀 1. Product Vision 
+
+Build a Reddit-like / StackOverflow-like forum with:
+
+Categories & threads
+Nested comments (infinite depth)
+Voting & moderation
+Real-time notifications (mentions, replies)
+Fast search (Elasticsearch)
+Scalable comment storage (MongoDB)
+
+🧱 2. Tech Architecture
+🔹 Backend (Laravel 12)
+
+REST + GraphQL API
+Auth: JWT
+MySQL → relational data (users, categories, threads)
+MongoDB → comments (nested, flexible)
+Redis → cache + queues
+Pusher → real-time events
+Elasticsearch → search
+
+🔹 Frontend (React + Vite + TS)
+
+Zustand → state management
+Axios → API
+TanStack Query → data fetching/cache
+Laravel Echo → real-time
+Bootstrap → UI
+
+📦 3. Core Features (Product Backlog)
+👤 Authentication
+
+Register / Login (JWT)
+Roles: user, moderator, admin
+
+📁 Categories
+
+Create / list categories
+Nested categories (optional)
+
+🧵 Threads
+
+Create thread
+Edit/delete thread
+
+Pagination
+
+💬 Comments (MongoDB)
+
+Nested replies (tree structure)
+Upvotes/downvotes
+Mentions (@user)
+
+🔔 Notifications
+
+Reply notifications
+Mention notifications
+Real-time via Pusher
+
+🔍 Search
+
+Full-text search (Elasticsearch)
+Filter by category, tags
+
+🛡 Moderation
+
+Report content
+Delete/lock thread
+Ban users
+
+
+
+🧩 4. Suggested Data Design
+MySQL (Relational)
+users
+categories
+threads
+votes
+reports
+
+
+MongoDB (Comments)
+{
+  "_id": "...",
+  "thread_id": 1,
+  "user_id": 2,
+  "content": "Reply",
+  "parent_id": null,
+  "children": [],
+  "created_at": "...",
+  "votes": 10
+}

@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+    "dev:backend": "cd backend && php artisan serve --port=8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently -n BACKEND,FRONTEND -c green,blue --kill-others-on-fail \"npm run dev:backend\" \"npm run dev:frontend\""
+  }
+}

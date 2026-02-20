@@ -1,0 +1,396 @@
+/* src/styles/Profile.module.css */
+
+.container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading */
+.loadingContainer {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #1a5aff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error */
+.errorContainer {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.errorCard {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  max-width: 400px;
+}
+
+.errorIcon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.errorCard h3 {
+  color: #1a1e24;
+  margin-bottom: 0.5rem;
+}
+
+.errorCard p {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+.retryButton {
+  background: #1a5aff;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: #0e4aff;
+  transform: translateY(-1px);
+}
+
+/* Profile Card */
+.profileCard {
+  background: white;
+  border-radius: 20px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+/* Header */
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.avatarLarge {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.profileTitle {
+  flex: 1;
+}
+
+.profileTitle h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a1e24;
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.memberSince {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.roleBadge {
+  background: #e8f0fe;
+  color: #1a5aff;
+  padding: 0.35rem 1rem;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Info Grid */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.infoLabel {
+  color: #6b7280;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.infoValue {
+  color: #1a1e24;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Edit Section */
+.editSection {
+  padding: 2rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a1e24;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.formGroup {
+  margin-bottom: 1.25rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4b5563;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1a5aff;
+  box-shadow: 0 0 0 3px rgba(26, 90, 255, 0.1);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.formActions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.updateButton {
+  background: #1a5aff;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.updateButton:hover:not(:disabled) {
+  background: #0e4aff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(26, 90, 255, 0.2);
+}
+
+.updateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Danger Zone */
+.dangerZone {
+  padding: 2rem;
+  background: #fff5f5;
+}
+
+.dangerDescription {
+  color: #b91c1c;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.deleteButton {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.deleteButton:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .profileHeader {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profileTitle {
+    text-align: center;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .container {
+    padding: 0 1rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .profileCard {
+    background: #1a1e24;
+  }
+
+  .profileHeader {
+    background: #2d3138;
+    border-bottom-color: #374151;
+  }
+
+  .profileTitle h1 {
+    color: #f3f4f6;
+  }
+
+  .memberSince {
+    color: #9ca3af;
+  }
+
+  .infoGrid {
+    background: #1a1e24;
+    border-bottom-color: #374151;
+  }
+
+  .infoLabel {
+    color: #9ca3af;
+  }
+
+  .infoValue {
+    color: #f3f4f6;
+  }
+
+  .editSection {
+    border-bottom-color: #374151;
+  }
+
+  .sectionTitle {
+    color: #f3f4f6;
+  }
+
+  .formGroup label {
+    color: #d1d5db;
+  }
+
+  .input {
+    background: #2d3138;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .input:focus {
+    border-color: #1a5aff;
+    box-shadow: 0 0 0 3px rgba(26, 90, 255, 0.2);
+  }
+
+  .dangerZone {
+    background: #2d2525;
+  }
+
+  .dangerDescription {
+    color: #fca5a5;
+  }
+
+  .errorCard {
+    background: #1a1e24;
+  }
+
+  .errorCard h3 {
+    color: #f3f4f6;
+  }
+
+  .errorCard p {
+    color: #9ca3af;
+  }
+}

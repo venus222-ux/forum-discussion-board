@@ -13,6 +13,9 @@ import { useStore } from "./store/useStore";
 import ModeratorDashboard from "./pages/Dashboard/ModeratorDashboard";
 import UserDashboard from "./pages/Dashboard/UserDashboard";
 import AdminDashboard from "./pages/Dashboard/AdminDashboard";
+import CategoryList from "./pages/CategoryList";
+import ThreadList from "./pages/ThreadList";
+import ThreadDetail from "./pages/ThreadDetail";
 
 const App = () => {
   const { theme, isAuth, role, startTokenRefreshLoop } = useStore();
@@ -29,6 +32,12 @@ const App = () => {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/categories" element={<CategoryList />} />
+        <Route
+          path="/categories/:categorySlug/threads"
+          element={<ThreadList />}
+        />
+        <Route path="/threads/:slug" element={<ThreadDetail />} />
 
         <Route
           path="/login"

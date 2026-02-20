@@ -1,3 +1,18 @@
+Sunt la Sprint 1. Am facut partea de Backend:
+Model, migrations, controller, route, db seed
+Next: 
+Sprint 3:
+“add comments system” → nested replies
+“add voting system” → upvote/downvote
+
+Zustand, optimizari???
+
+
+Pages:  
+Home, details, single category threads, user profile, 
+search page, dashboard. 
+....
+
 User: 
 crud intrebari, active/draft.
 Comenteaza la el sau la altii
@@ -7,27 +22,8 @@ poate raporta un raspuns
 real time notify cand cineva rasp la ce ai intrebat
 
 
-vede in dashboard: 
-ce a vizitat
+user vede in dashboard: 
 unde a comentat si cate
 unde a dat likuri si cate
-
-
-Home page:
-Lista cu intrebari:
-avatar/author nume,categorie, titlu,
-nr likueri, nr comm, ulimul com data.
-Sidebar cu top useri activi pe sapt/all time
-
-Conv Detail page:
-title, author, data, adauga la fav, mesaje.
-
-
-Cat page:
-search bar, list of items.
-
-Author public profile:
-all active questions
-
 
 User Points?

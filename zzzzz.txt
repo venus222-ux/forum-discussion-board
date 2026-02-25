@@ -1,14 +1,6 @@
 
-NEXT 
-Score
-Report Comment
-Pusher notify on new comments and replays
-Advanced: AI MODERATE COMMENTS
-✅ Dashboard User/Moderate/Admin
-
-
-
-Zustand, optimizari, react query???
+NEXT: 
+Es, Dashboard, 
 
 Pagini:
 login/logout/forget pass/Profile
@@ -22,19 +14,44 @@ Componente:
 Navbar
 
 
+useThreadStore.ts – Zustand Store for Threads
+The store manages:
+List of threads (threads), the current thread (currentThread), loading states, and errors.
+Replies (comments) per thread.
+Optimistic UI updates for adding replies and marking best answers.
+Key methods:
+fetchThreads(page): Fetches paginated thread list.
+fetchThreadBySlug(slug): Fetches a single thread + its comments.
+setReplies(slug, replies): Updates the reply tree, marking best answer.
+addReply(slug, reply): Adds a new reply, correctly nested if parentId exists.
+refetchReplies(slug): Refetches comments to sync with backend.
+markBestReply(slug, commentId): Marks a comment as best, reorders tree to place it at top.
+reset(): Clears store.
+Recursive Helpers:
+insertReply: Inserts a reply at the correct parent in nested children.
+markBestInTree: Recursively marks the best comment in the tree.
 
-DOME:
-Backend:
-✅ Prevent spam (1 vote per user enforced properly)
-✅ Toggle vote (upvote → remove)
-✅ Score system (upvotes - downvotes)
 
-FRONTEND:
-✅ React recursive comment component (Zustand + TanStack)
-✅ Optimistic UI for replies
-✅ Real-time updates with Pusher
-✅ Expand/collapse tree in React (Zustand + recursion)
-✅ Upvote/downvote system with optimistic UI
+4️⃣ Workflow Summary
+Adding a reply:
+User types reply → handleReplySubmit.
+POST request sent to /api/threads/${slug}/comments.
+On success, addReply() updates Zustand store.
+UI shows reply immediately (optimistic UI).
+Voting:
+User clicks vote → handleVote(type).
+Update upvotes/downvotes immediately.
+POST request sent to /api/comments/${id}/vote.
+On failure, revert the vote counts.
+Marking Best Answer:
+Only thread author sees button.
+Click → handleAcceptBest.
+Update UI optimistically via markBestReply.
+POST request sent to /api/comments/${id}/accept.
+Refetch replies to ensure consistency.
+Nested Replies:
+Recursive component rendering: children are displayed with increasing marginLeft to indicate nesting
+
 
 
 🧮 3. REPUTATION SYSTEM (LIKE STACKOVERFLOW)
@@ -46,10 +63,56 @@ FRONTEND:
 | Accepted answer   | +15    |
 | Question asked    | +2     |
 
+...
+Pusher will support:
+🔔 Someone commented on your thread
+🔔 Someone replied to your comment
+🔔 Someone liked (upvoted) your comment
+🔔 Your comment was selected as Best Answer
+🔔 Dropdown with clear-all
 
-✅ Only thread author can accept an answer
-✅ Best answer gets visual highlight (green border/bg)
-✅ Best answer appears at the top
-✅ "Best Answer" badge is displayed
-✅ Reputation rewards for accepted answers
-✅ Author gets reputation for accepting
+
+
+....
+⚙️ Moderation Flow (StackOverflow style)
+🟡 Flagging Process
+
+User clicks "Flag"
+Insert into comment_flags
+Increment Redis counter
+If flags > 5 → auto-hide comment
+Notify moderators via Pusher
+
+🔵 Moderator Review Process
+Moderator dashboard:
+View flagged comments
+Accept flag → hide/delete comment
+Reject flag → restore visibility
+Add official moderator reply
+
+✅ Key Technical Advantages
+
+Redis counter
+ Fast and avoids multiple DB reads for flag counts.
+ Helps auto-hide spammy or offensive comments dynamically.
+Events & real-time notifications
+ Using ShouldBroadcast ensures moderators get notified instantly.
+ Multiple types of notifications can coexist:
+   CommentFlagged → moderation
+   ThreadCommented → thread author
+   CommentReplied → parent author
+MongoDB for threaded comments
+ Flexible document-based storage makes hierarchical comment structures easier to manage.
+ Fields like path and depth allow efficient sorting and querying.
+Moderation logs
+ Auditing: Every moderator action is tracked for transparency.
+Scalable for multiple notification types
+ Each notification is its own event type.
+ Example: a single comment can trigger:
+   Moderation flag notification.
+   Notification to thread author.
+   Notification to parent comment author.
+ This separation avoids conflicts and keeps the system modular.
+
+
+ ....

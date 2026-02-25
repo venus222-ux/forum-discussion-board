@@ -18,8 +18,8 @@ class ThreadController extends Controller
     }
 
     // app/Http/Controllers/ThreadController.php
-public function recent(Request $request)
-{
+    public function recent(Request $request)
+   {
     // Read page number from query string, default 1
     $page = $request->query('page', 1);
 
@@ -62,15 +62,17 @@ public function recent(Request $request)
 
 
     // Show single thread by slug
-    public function show($slug) {
-        $thread = Thread::with('user', 'category')
-            ->where('slug', $slug)
-            ->firstOrFail();
+public function show($slug)
+{
+    $thread = Thread::with(['user:id,name', 'category:id,name,slug'])
+        ->where('slug', $slug)
+        ->firstOrFail();
 
-        $thread->best_comment_id;
+    // Fetch MongoDB comments safely
+    $thread->replies = $thread->fetchComments();
 
-        return response()->json($thread);
-    }
+    return response()->json($thread);
+}
 
     // Create thread — user only
     public function store(Request $request) {

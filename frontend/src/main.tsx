@@ -9,6 +9,7 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import "./echo";
 
 const queryClient = new QueryClient();
 

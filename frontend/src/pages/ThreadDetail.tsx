@@ -1,5 +1,5 @@
 // src/pages/ThreadDetail.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "../store/useStore";
@@ -17,7 +17,7 @@ export default function ThreadDetail() {
   const { isAuth, user } = useStore();
   const navigate = useNavigate();
 
-  // Zustand
+  // Zustand store
   const currentThread = useThreadStore((s) => s.currentThread);
   const isFetchingOne = useThreadStore((s) => s.isFetchingOne);
   const fetchThreadBySlug = useThreadStore((s) => s.fetchThreadBySlug);
@@ -26,9 +26,17 @@ export default function ThreadDetail() {
 
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Persist active tab in localStorage
   const [activeTab, setActiveTab] = useState<"discussion" | "details">(
-    "discussion",
+    () =>
+      (localStorage.getItem("activeTab") as "discussion" | "details") ||
+      "discussion",
   );
+
+  useEffect(() => {
+    localStorage.setItem("activeTab", activeTab);
+  }, [activeTab]);
 
   // ---------------- FETCH THREAD ----------------
   useEffect(() => {
@@ -39,7 +47,7 @@ export default function ThreadDetail() {
 
   // ---------------- FETCH COMMENTS ----------------
   const {
-    data: replies = [],
+    data: fetchedReplies = [],
     isLoading: loadingReplies,
     refetch: refetchReplies,
   } = useQuery<Reply[]>({
@@ -49,18 +57,50 @@ export default function ThreadDetail() {
       const res = await fetch(`/api/threads/${slug}/comments`);
       if (!res.ok) throw new Error("Failed to fetch comments");
       const data: Reply[] = await res.json();
-
-      // mark best comment
-      const enrichedReplies = data.map((comment) => ({
-        ...comment,
-        isBest: currentThread?.best_comment_id === comment._id,
-      }));
-
-      setReplies(slug, enrichedReplies);
-      return enrichedReplies;
+      return data;
     },
     enabled: !!slug,
   });
+
+  // ---------------- ENRICH REPLIES ----------------
+  const prevBestId = useRef<string | undefined>();
+
+  const enrichReplies = (replies: Reply[], bestId?: string): Reply[] =>
+    replies.map((r) => ({
+      ...r,
+      isBest: r._id === bestId,
+      children: r.children ? enrichReplies(r.children, bestId) : undefined,
+    }));
+
+  useEffect(() => {
+    if (!currentThread || !fetchedReplies) return;
+
+    // Only update if best_comment_id changed or replies array changed
+    const currentRepliesIds = (currentThread.replies || [])
+      .map((r) => r._id)
+      .join(",");
+    const fetchedRepliesIds = fetchedReplies.map((r) => r._id).join(",");
+
+    if (
+      prevBestId.current === currentThread.best_comment_id &&
+      currentRepliesIds === fetchedRepliesIds
+    )
+      return;
+
+    prevBestId.current = currentThread.best_comment_id;
+
+    const enriched = enrichReplies(
+      fetchedReplies,
+      currentThread.best_comment_id,
+    );
+    setReplies(slug!, enriched);
+  }, [
+    currentThread?.best_comment_id,
+    fetchedReplies,
+    slug,
+    setReplies,
+    currentThread?.replies,
+  ]);
 
   // ---------------- TOOLTIP INIT ----------------
   useEffect(() => {
@@ -71,7 +111,7 @@ export default function ThreadDetail() {
     tooltipTriggerList.forEach((el) => {
       new (window as any).bootstrap.Tooltip(el);
     });
-  }, [replies]);
+  }, [fetchedReplies]);
 
   // ---------------- POST REPLY ----------------
   const handleReplySubmit = async (e: React.FormEvent) => {
@@ -113,14 +153,15 @@ export default function ThreadDetail() {
       });
       if (!res.ok) throw new Error("Failed to accept comment");
 
-      // Update local Zustand state immediately
-      setReplies(
-        slug,
-        replies.map((c) => ({
-          ...c,
-          isBest: c._id === commentId,
-        })),
-      );
+      // Update replies locally
+      const updated = enrichReplies(fetchedReplies, commentId);
+      setReplies(slug, updated);
+
+      // Update currentThread state to persist best_comment_id
+      useThreadStore.getState().setCurrentThread({
+        ...currentThread!,
+        best_comment_id: commentId,
+      });
     } catch (err) {
       console.error(err);
     }
@@ -237,12 +278,14 @@ export default function ThreadDetail() {
       {/* Tabs */}
       <div className={styles.tabs}>
         <button
-          className={`${styles.tab} ${activeTab === "discussion" ? styles.activeTab : ""}`}
+          className={`${styles.tab} ${
+            activeTab === "discussion" ? styles.activeTab : ""
+          }`}
           onClick={() => setActiveTab("discussion")}
         >
           Discussion{" "}
-          {replies.length > 0 && (
-            <span className={styles.tabCount}>{replies.length}</span>
+          {thread.replies && thread.replies.length > 0 && (
+            <span className={styles.tabCount}>{thread.replies.length}</span>
           )}
         </button>
         <button
@@ -298,34 +341,11 @@ export default function ThreadDetail() {
             {loadingReplies ? (
               <p>Loading replies...</p>
             ) : (
-              (() => {
-                const sortedReplies = [
-                  ...replies.filter((r) => r.isBest),
-                  ...replies.filter((r) => !r.isBest),
-                ];
-
-                return sortedReplies.map((c) => (
-                  <div
-                    key={c._id}
-                    className={c.isBest ? styles.bestComment : ""}
-                  >
-                    <CommentTree
-                      comment={c}
-                      level={0}
-                      threadSlug={slug || ""}
-                      // Pass accept handler for thread author
-                    />
-                    {isAuth && thread.user?.id === user?.id && !c.isBest && (
-                      <button
-                        className={styles.acceptButton}
-                        onClick={() => handleAcceptBest(c._id)}
-                      >
-                        Accept as Best Answer
-                      </button>
-                    )}
-                  </div>
-                ));
-              })()
+              (thread.replies || []).map((c) => (
+                <div key={c._id} className={c.isBest ? styles.bestComment : ""}>
+                  <CommentTree comment={c} level={0} threadSlug={slug || ""} />
+                </div>
+              ))
             )}
           </div>
         </div>

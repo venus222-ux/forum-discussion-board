@@ -1,3 +1,4 @@
+// src/pages/Home.tsx
 import { Link } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { useState, useEffect } from "react";
@@ -15,6 +16,7 @@ interface ActiveUser {
   id: number;
   name: string;
   postCount: number;
+  reputation: number;
 }
 
 interface Category {
@@ -46,13 +48,26 @@ const Home = () => {
     queryFn: async () => {
       const res = await API.get("/users/most-active");
       return res.data.map((u: any) => ({
-        ...u,
+        id: u.id,
+        name: u.name,
         postCount: u.threads_count ?? 0,
+        reputation: u.reputation ?? 0,
       }));
     },
     staleTime: 1000 * 60 * 5,
   });
-  const activeUsers = usersData || [];
+
+  // --- SORT USERS BY POINTS (postCount + reputation) ---
+  interface ActiveUserWithPoints extends ActiveUser {
+    points: number;
+  }
+
+  const activeUsersWithPoints: ActiveUserWithPoints[] = (usersData || [])
+    .map((user) => ({
+      ...user,
+      points: (user.postCount ?? 0) + (user.reputation ?? 0),
+    }))
+    .sort((a, b) => b.points - a.points);
 
   // --- CATEGORIES QUERY ---
   const { data: categoriesData } = useQuery({
@@ -123,9 +138,9 @@ const Home = () => {
                     )}
                   </div>
                 ) : (
-                  threads.map((thread: Thread) => (
+                  threads.map((thread: Thread, index) => (
                     <Link
-                      key={thread.id}
+                      key={`${thread.id}-${thread.slug}-${index}`} // ✅ unique key
                       to={`/threads/${thread.slug}`}
                       className={styles.threadLink}
                     >
@@ -237,7 +252,7 @@ const Home = () => {
         <aside className={styles.sidebar}>
           <h3 className={styles.sidebarTitle}>Most active users</h3>
           <div className={styles.userList}>
-            {activeUsers.length === 0
+            {activeUsersWithPoints.length === 0
               ? Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className={styles.userItem}>
                     <div className={styles.userAvatarSkeleton} />
@@ -247,7 +262,7 @@ const Home = () => {
                     </div>
                   </div>
                 ))
-              : activeUsers.map((user: ActiveUser) => (
+              : activeUsersWithPoints.map((user) => (
                   <div key={user.id} className={styles.userItem}>
                     <div className={styles.userAvatar}>
                       <span>{getUserInitials(user.name)}</span>
@@ -255,7 +270,7 @@ const Home = () => {
                     <div className={styles.userInfo}>
                       <span className={styles.userName}>{user.name}</span>
                       <span className={styles.userStats}>
-                        {user.postCount} posts
+                        {user.postCount} posts · {user.points} pts
                       </span>
                     </div>
                   </div>

@@ -1,11 +1,20 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ThreadController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\ModerationController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
+
+
+Broadcast::routes([
+    'middleware' => ['auth.jwt'],
+]);
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -24,10 +33,12 @@ Route::get('/categories/{categorySlug}/threads', [ThreadController::class, 'inde
 Route::get('/threads/recent', [ThreadController::class, 'recent']);
 Route::get('/threads/{slug}', [ThreadController::class, 'show']);
 
+
+
+
 // ------------------ THREAD COMMENTS ------------------
 // Public: fetch all comments for a thread
 Route::get('/threads/{slug}/comments', [CommentController::class, 'getThreadComments']);
-
 
 // Protected routes with auth + throttle
 Route::middleware('auth.jwt')->group(function ()  {
@@ -37,8 +48,12 @@ Route::middleware('auth.jwt')->group(function ()  {
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::delete('/profile', [AuthController::class, 'destroyProfile']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
-
     Route::post('/threads/{threadId}/comments', [CommentController::class, 'store']);
+
+    //Notify
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/clear', [NotificationController::class, 'clear']);
 
     //Comments
     Route::get('/comments/{parentId}/replies', [CommentController::class, 'loadReplies']);
@@ -50,6 +65,10 @@ Route::middleware('auth.jwt')->group(function ()  {
     Route::delete('/comments/{commentId}', [CommentController::class, 'delete']);
     // fetch replies of a comment
     Route::get('/comments/{commentId}/replies', [CommentController::class, 'getReplies']);
+
+      // User can flag a comment
+    Route::post('/comments/{commentId}/flag', [ModerationController::class, 'flag']);
+
     // Categories (admin only)
     Route::middleware('role:admin')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store']);
@@ -64,5 +83,17 @@ Route::middleware('auth.jwt')->group(function ()  {
         Route::put('/threads/{slug}', [ThreadController::class, 'update']);
         Route::delete('/threads/{slug}', [ThreadController::class, 'destroy']);
     });
+
+    Route::middleware('role:moderator')->group(function () {
+      Route::get('/moderation/flags', [ModerationController::class, 'listFlags']);
+      Route::post('/moderation/{commentId}/approve', [ModerationController::class, 'approve']);
+      Route::post('/moderation/{commentId}/reject', [ModerationController::class, 'reject']);
+      Route::post('/moderation/{commentId}/official-reply', [ModerationController::class, 'officialReply']);
+   });
+
+   Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+    });
+
 
 });

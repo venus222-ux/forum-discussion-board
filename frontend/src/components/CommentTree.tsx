@@ -1,5 +1,5 @@
 // src/components/CommentTree.tsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Reply, useThreadStore } from "../store/useThreadStore";
 import { useStore } from "../store/useStore";
 import styles from "../styles/CommentTree.module.css";
@@ -23,46 +23,50 @@ export default function CommentTree({
 
   const [replying, setReplying] = useState(false);
   const [replyContent, setReplyContent] = useState("");
+
   const [upvotes, setUpvotes] = useState(comment.upvotes || 0);
   const [downvotes, setDownvotes] = useState(comment.downvotes || 0);
   const [optimisticVote, setOptimisticVote] = useState<
     "upvote" | "downvote" | null
   >(null);
 
-  // Check if current user is the thread author
+  const [showFlagBox, setShowFlagBox] = useState(false);
+  const [flagReason, setFlagReason] = useState("");
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+
+  // ---------------- HIDDEN COMMENT ----------------
+  if (comment.is_hidden) {
+    return (
+      <div className={styles.commentWrapper} style={{ marginLeft: level * 24 }}>
+        <div className={styles.commentCard}>
+          <div className={styles.hiddenComment}>
+            ⚠️ This comment was hidden by moderators.
+            {comment.moderation_reason && (
+              <div className={styles.moderationReason}>
+                Reason: {comment.moderation_reason}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------- Memoized flags -----------------
   const isThreadAuthor = useMemo(() => {
     if (!isAuth || !user?.id || !currentThread?.user?.id) return false;
+    return String(user.id) === String(currentThread.user.id);
+  }, [isAuth, user?.id, currentThread?.user?.id]);
 
-    // Convert both to strings for comparison
-    const userId = String(user.id);
-    const threadAuthorId = String(currentThread.user.id);
+  const isBestAnswer = comment.isBest === true;
+  const isOfficialReply = comment.official_reply === true;
 
-    return userId === threadAuthorId;
-  }, [isAuth, user, currentThread]);
-
-  // Check if this comment is the best answer
-  const isBestAnswer = useMemo(() => {
-    return comment.isBest === true;
-  }, [comment.isBest]);
-
-  // Debug logging - remove in production
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("CommentTree:", {
-        id: comment._id,
-        isBest: comment.isBest,
-        isThreadAuthor,
-        userId: user?.id,
-        threadAuthorId: currentThread?.user?.id,
-      });
-    }
-  }, [
-    comment._id,
-    comment.isBest,
-    isThreadAuthor,
-    user?.id,
-    currentThread?.user?.id,
-  ]);
+  const canSelectBestAnswer = useMemo(() => {
+    if (!isThreadAuthor) return false;
+    if (currentThread?.best_comment_id) return false;
+    if (isBestAnswer) return false;
+    return true;
+  }, [isThreadAuthor, currentThread?.best_comment_id, isBestAnswer]);
 
   // ---------------- POST REPLY ----------------
   const handleReplySubmit = async () => {
@@ -85,6 +89,7 @@ export default function CommentTree({
 
       const newReply: Reply = await res.json();
       addReply(threadSlug, newReply);
+
       setReplyContent("");
       setReplying(false);
     } catch (err) {
@@ -96,28 +101,15 @@ export default function CommentTree({
   const handleVote = async (type: "upvote" | "downvote") => {
     if (!isAuth) return;
 
-    // Optimistic update
     if (optimisticVote === type) {
-      // Remove vote
       setOptimisticVote(null);
-      if (type === "upvote") {
-        setUpvotes((prev) => prev - 1);
-      } else {
-        setDownvotes((prev) => prev - 1);
-      }
+      type === "upvote" ? setUpvotes((v) => v - 1) : setDownvotes((v) => v - 1);
     } else {
-      // Add or change vote
-      if (type === "upvote") {
-        setUpvotes((prev) => prev + 1);
-        if (optimisticVote === "downvote") {
-          setDownvotes((prev) => prev - 1);
-        }
-      } else {
-        setDownvotes((prev) => prev + 1);
-        if (optimisticVote === "upvote") {
-          setUpvotes((prev) => prev - 1);
-        }
-      }
+      type === "upvote" ? setUpvotes((v) => v + 1) : setDownvotes((v) => v + 1);
+
+      if (optimisticVote === "upvote") setUpvotes((v) => v - 1);
+      if (optimisticVote === "downvote") setDownvotes((v) => v - 1);
+
       setOptimisticVote(type);
     }
 
@@ -131,14 +123,11 @@ export default function CommentTree({
         body: JSON.stringify({ type }),
       });
 
-      if (!res.ok) {
-        // Revert optimistic update on error
-        setOptimisticVote(null);
-        setUpvotes(comment.upvotes || 0);
-        setDownvotes(comment.downvotes || 0);
-        throw new Error("Vote failed");
-      }
+      if (!res.ok) throw new Error("Vote failed");
     } catch (err) {
+      setOptimisticVote(null);
+      setUpvotes(comment.upvotes || 0);
+      setDownvotes(comment.downvotes || 0);
       console.error(err);
     }
   };
@@ -147,10 +136,10 @@ export default function CommentTree({
   const handleAcceptBest = async () => {
     if (!threadSlug || !comment._id || !isThreadAuthor || isBestAnswer) return;
 
-    try {
-      // Optimistic update
-      markBestReply(threadSlug, comment._id);
+    comment.isBest = true;
+    markBestReply(threadSlug, comment._id);
 
+    try {
       const res = await fetch(`/api/comments/${comment._id}/accept`, {
         method: "POST",
         headers: {
@@ -159,16 +148,57 @@ export default function CommentTree({
         },
       });
 
-      if (!res.ok) {
-        // If failed, refetch to revert optimistic update
-        await refetchReplies?.(threadSlug);
-        throw new Error("Failed to accept comment");
-      }
+      if (!res.ok) throw new Error("Failed to accept comment");
 
-      // Refetch to ensure consistency
       await refetchReplies?.(threadSlug);
     } catch (err) {
+      comment.isBest = false;
+      markBestReply(threadSlug, "");
       console.error(err);
+    }
+  };
+
+  // ---------------- FLAG COMMENT ----------------
+  const handleFlag = async () => {
+    if (flagSubmitting) return;
+
+    const reason = flagReason.trim().substring(0, 255);
+    if (!reason) {
+      alert("Please provide a reason for flagging.");
+      return;
+    }
+
+    setFlagSubmitting(true);
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/comments/${comment._id}/flag`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ reason }),
+        },
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Flag error:", data);
+        alert(data.message || "Failed to flag comment");
+        return;
+      }
+
+      setShowFlagBox(false);
+      setFlagReason("");
+      alert("Comment flagged successfully.");
+    } catch (err: any) {
+      console.error("Unexpected error while flagging:", err);
+      alert(err.message || "Unexpected error occurred");
+    } finally {
+      setFlagSubmitting(false);
     }
   };
 
@@ -179,21 +209,25 @@ export default function CommentTree({
           isBestAnswer ? styles.bestComment : ""
         }`}
       >
+        {/* HEADER */}
         <div className={styles.commentHeader}>
           <div className={styles.commentAuthor}>
             <div className={styles.avatar}>
               {comment.user?.name?.[0]?.toUpperCase() || "?"}
             </div>
+
             <div className={styles.authorInfo}>
               <span className={styles.authorName}>
                 {comment.user?.name || "Anonymous"}
               </span>
+
               <span className={styles.commentTime}>
                 {new Date(comment.createdAt).toLocaleString()}
               </span>
             </div>
           </div>
 
+          {/* VOTES */}
           <div className={styles.voteButtons}>
             <button
               onClick={() => handleVote("upvote")}
@@ -201,12 +235,8 @@ export default function CommentTree({
                 optimisticVote === "upvote" ? styles.active : ""
               }`}
               disabled={!isAuth}
-              aria-label="Upvote"
             >
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path d="M12 4L4 12h5v8h6v-8h5z" fill="currentColor" />
-              </svg>
-              <span>{upvotes}</span>
+              ▲ <span>{upvotes}</span>
             </button>
 
             <button
@@ -215,96 +245,83 @@ export default function CommentTree({
                 optimisticVote === "downvote" ? styles.active : ""
               }`}
               disabled={!isAuth}
-              aria-label="Downvote"
             >
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path d="M12 20L4 12h5V4h6v8h5z" fill="currentColor" />
-              </svg>
-              <span>{downvotes}</span>
+              ▼ <span>{downvotes}</span>
             </button>
           </div>
         </div>
 
+        {/* CONTENT */}
         <div className={styles.commentContent}>{comment.content}</div>
 
+        {/* BADGES */}
         <div className={styles.commentActions}>
-          {/* Accept as Best Answer button - Only for thread author, on non-best comments */}
-          {isThreadAuthor && !isBestAnswer && (
-            <button className={styles.acceptButton} onClick={handleAcceptBest}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  d="M20 6L9 17l-5-5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+          {isBestAnswer && (
+            <span className={`${styles.badge} ${styles.bgSuccess}`}>
+              ✅ Best Answer
+            </span>
+          )}
+
+          {isOfficialReply && (
+            <span className={`${styles.badge} ${styles.bgInfo}`}>
+              🛡️ Official Moderator Reply
+            </span>
+          )}
+
+          {canSelectBestAnswer && (
+            <button className={styles.actionButton} onClick={handleAcceptBest}>
               Accept as Best Answer
             </button>
           )}
 
-          {/* Best Answer badge */}
-          {isBestAnswer && (
-            <div className={styles.badgeGroup}>
-              <span className={`${styles.badge} ${styles.bgSuccess}`}>
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                >
-                  <path
-                    d="M20 6L9 17l-5-5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Best Answer
-              </span>
-              <span
-                className={`${styles.badge} ${styles.bgPrimary}`}
-                title="This answer solved the question"
-              >
-                ✔ Accepted by author
-              </span>
-            </div>
-          )}
-
-          {/* Reply button */}
           {isAuth && (
             <button
+              className={`${styles.actionButton} ${replying ? styles.active : ""}`}
               onClick={() => setReplying(!replying)}
-              className={`${styles.actionButton} ${
-                replying ? styles.active : ""
-              }`}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Reply
+              💬 Reply
+            </button>
+          )}
+
+          {isAuth && (
+            <button
+              className={styles.actionButton}
+              onClick={() => setShowFlagBox(!showFlagBox)}
+            >
+              🚩 Flag
             </button>
           )}
         </div>
 
+        {/* FLAG BOX */}
+        {showFlagBox && (
+          <div className={styles.replyForm}>
+            <textarea
+              value={flagReason}
+              onChange={(e) => setFlagReason(e.target.value)}
+              placeholder="Reason for flag..."
+              rows={2}
+              className={styles.replyInput}
+            />
+            <div className={styles.replyFormActions}>
+              <button
+                onClick={() => setShowFlagBox(false)}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFlag}
+                disabled={!flagReason.trim() || flagSubmitting}
+                className={styles.submitButton}
+              >
+                Submit Flag
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* REPLY FORM */}
         {replying && (
           <div className={styles.replyForm}>
             <textarea
@@ -314,6 +331,7 @@ export default function CommentTree({
               className={styles.replyInput}
               rows={3}
             />
+
             <div className={styles.replyFormActions}>
               <button
                 onClick={() => setReplying(false)}
@@ -321,6 +339,7 @@ export default function CommentTree({
               >
                 Cancel
               </button>
+
               <button
                 onClick={handleReplySubmit}
                 disabled={!replyContent.trim()}
@@ -332,10 +351,10 @@ export default function CommentTree({
           </div>
         )}
 
-        {/* Recursive children */}
+        {/* NESTED COMMENTS */}
         {comment.children?.map((child) => (
           <CommentTree
-            key={`${child._id}-${child.parentId || "root"}`}
+            key={child._id}
             comment={child}
             level={level + 1}
             threadSlug={threadSlug}

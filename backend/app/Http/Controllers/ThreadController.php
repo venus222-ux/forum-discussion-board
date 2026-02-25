@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Thread;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ThreadController extends Controller
 {
@@ -18,8 +19,8 @@ class ThreadController extends Controller
     }
 
     // app/Http/Controllers/ThreadController.php
-public function recent(Request $request)
-{
+    public function recent(Request $request)
+   {
     // Read page number from query string, default 1
     $page = $request->query('page', 1);
 
@@ -45,9 +46,7 @@ public function recent(Request $request)
         'per_page' => $threads->perPage(),
         'total' => $threads->total(),
     ], 200);
-}
-
-
+   }
 
     // List ONLY authenticated user's threads
     public function myThreads()
@@ -59,18 +58,27 @@ public function recent(Request $request)
     }
 
 
-
-
     // Show single thread by slug
-    public function show($slug) {
-        $thread = Thread::with('user', 'category')
-            ->where('slug', $slug)
-            ->firstOrFail();
+<<<<<<< HEAD
+public function show($slug)
+{
+=======
+   public function show($slug)
+   {
+>>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+    $thread = Thread::with(['user:id,name', 'category:id,name,slug'])
+        ->where('slug', $slug)
+        ->firstOrFail();
 
-        $thread->best_comment_id;
+    // Fetch MongoDB comments safely
+    $thread->replies = $thread->fetchComments();
 
-        return response()->json($thread);
-    }
+    return response()->json($thread);
+<<<<<<< HEAD
+}
+=======
+   }
+>>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
 
     // Create thread — user only
     public function store(Request $request) {
@@ -121,4 +129,81 @@ public function recent(Request $request)
         $thread->delete();
         return response()->json(['message' => 'Thread deleted successfully']);
     }
+
+
+public function search(Request $request)
+{
+    $query = $request->query('q');
+    $page  = max(1, (int) $request->query('page', 1));
+    $perPage = 10;
+
+    if (empty(trim($query))) {
+        return response()->json([
+            'data'         => [],
+            'current_page' => 1,
+            'last_page'    => 1,
+            'per_page'     => $perPage,
+            'total'        => 0,
+        ], 200);
+    }
+
+    // 1️⃣ Get matching IDs from Scout (convert to array)
+    $allMatchingIds = Thread::search($query)->keys()->toArray();
+    $total = count($allMatchingIds);
+    $lastPage = (int) ceil($total / $perPage);
+
+    // 2️⃣ Prevent fetching if page > last page
+    if ($page > $lastPage && $total > 0) {
+        return response()->json([
+            'data'         => [],
+            'current_page' => $lastPage,
+            'last_page'    => $lastPage,
+            'per_page'     => $perPage,
+            'total'        => $total,
+        ], 200);
+    }
+
+    // 3️⃣ Slice IDs for current page
+    $offset = ($page - 1) * $perPage;
+    $pagedIds = array_slice($allMatchingIds, $offset, $perPage);
+
+    // 4️⃣ Fetch models only if there are IDs
+    $threads = collect();
+    if (!empty($pagedIds)) {
+        $threads = Thread::with(['user:id,name', 'category:id,name,slug'])
+            ->whereIn('id', $pagedIds)
+            ->orderByRaw('FIELD(id, ' . implode(',', $pagedIds) . ')')
+            ->get();
+
+        // 5️⃣ Transform threads
+        $threads->transform(function ($thread) {
+            $thread->created_at    = $thread->created_at?->toIso8601String();
+            $thread->comment_count = $thread->comment_count ?? 0;
+            $thread->upvotes       = $thread->upvotes ?? 0;
+            $thread->downvotes     = $thread->downvotes ?? 0;
+            $thread->like_count    = $thread->upvotes - $thread->downvotes;
+            return $thread;
+        });
+    }
+
+    // 6️⃣ Wrap in LengthAwarePaginator
+    $paginator = new LengthAwarePaginator(
+        $threads,
+        $total,
+        $perPage,
+        $page,
+        [
+            'path'  => $request->url(),
+            'query' => $request->query(),
+        ]
+    );
+
+    return response()->json([
+        'data'         => $paginator->items(),
+        'current_page' => $paginator->currentPage(),
+        'last_page'    => $paginator->lastPage(),
+        'per_page'     => $paginator->perPage(),
+        'total'        => $paginator->total(),
+    ], 200);
+}
 }

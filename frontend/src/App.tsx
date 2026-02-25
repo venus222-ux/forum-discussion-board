@@ -10,21 +10,17 @@ import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import { ToastContainer } from "react-toastify";
 import { useStore } from "./store/useStore";
-import ModeratorDashboard from "./pages/Dashboard/ModeratorDashboard";
-import UserDashboard from "./pages/Dashboard/UserDashboard";
-import AdminDashboard from "./pages/Dashboard/AdminDashboard";
 import CategoryList from "./pages/CategoryList";
 import ThreadList from "./pages/ThreadList";
 import ThreadDetail from "./pages/ThreadDetail";
+import Dashboard from "./pages/Dashboard/Dashboard";
 
 const App = () => {
   const { theme, isAuth, role, startTokenRefreshLoop } = useStore();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-bs-theme", theme);
-
     if (isAuth) startTokenRefreshLoop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, isAuth]);
 
   return (
@@ -32,7 +28,6 @@ const App = () => {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route
           path="/login"
           element={!isAuth ? <Login /> : <Navigate to="/dashboard" replace />}
@@ -43,7 +38,6 @@ const App = () => {
             !isAuth ? <Register /> : <Navigate to="/dashboard" replace />
           }
         />
-
         <Route path="/categories" element={<CategoryList />} />
         <Route
           path="/categories/:categorySlug/threads"
@@ -51,25 +45,9 @@ const App = () => {
         />
         <Route path="/threads/:slug" element={<ThreadDetail />} />
 
-        {/* Single dashboard route */}
-        <Route
-          path="/dashboard"
-          element={
-            isAuth ? (
-              role === "moderator" ? (
-                <ModeratorDashboard />
-              ) : role === "user" ? (
-                <UserDashboard />
-              ) : role === "admin" ? (
-                <AdminDashboard />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+        {/* Single /dashboard route with role selection */}
+        {/* 🔥 CLEAN SINGLE DASHBOARD ROUTE */}
+        <Route path="/dashboard" element={<Dashboard />} />
 
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -77,8 +55,6 @@ const App = () => {
           path="/profile"
           element={isAuth ? <Profile /> : <Navigate to="/login" replace />}
         />
-
-        {/* Catch-all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
       <ToastContainer position="top-right" autoClose={3000} />

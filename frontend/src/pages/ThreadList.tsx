@@ -1,333 +1,126 @@
 // src/pages/ThreadList.tsx
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useCategoryThreads } from "../hooks/useThreads";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useStore } from "../store/useStore";
 import { useThreadStore, Thread } from "../store/useThreadStore";
 import styles from "../styles/ThreadList.module.css";
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  thread_count?: number;
-}
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 
 export default function ThreadList() {
-  const { categorySlug } = useParams<{ categorySlug: string }>();
   const { isAuth, user } = useStore();
-  const [category, setCategory] = useState<Category | null>(null);
 
-  const {
-    threads,
-    hasMore,
-    loadingMore,
-    addThreads,
-    addOptimistic,
-    replaceThread,
-    removeThread,
-    reset,
-    fetchCategoryThreads,
-  } = useThreadStore();
+  // Zustand store
+  const threads = useThreadStore((s) => s.threads);
+  const lastPage = useThreadStore((s) => s.lastPage);
+  const fetchThreads = useThreadStore((s) => s.fetchThreads);
+  const setThreads = useThreadStore((s) => s.setThreads);
 
-  const loader = useRef<HTMLDivElement | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  // Local state
+  const [page, setPage] = useState(1);
 
-  // Fetch category threads with React Query
-  const { data, isLoading, error } = useCategoryThreads(categorySlug!);
-
-  // Sync React Query data to Zustand
-  useEffect(() => {
-    if (data?.data) {
-      reset();
-      addThreads(data.data, data.next_cursor || null);
-    }
-  }, [data]);
-
-  // Fetch category info
-  useEffect(() => {
-    if (!categorySlug) return;
-    const fetchCategory = async () => {
-      try {
-        const res = await fetch(`/api/categories/${categorySlug}`);
-        const json = await res.json();
-        setCategory(json);
-      } catch (err) {
-        console.error("Error fetching category:", err);
-      }
-    };
-    fetchCategory();
-  }, [categorySlug]);
-
-  // Infinite scroll observer
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const target = entries[0];
-      if (target.isIntersecting && hasMore && !loadingMore) {
-        fetchCategoryThreads(categorySlug!);
-      }
+  // Fetch threads on page load or page change
+  const { isLoading, isFetching } = useQuery({
+    queryKey: ["threads", page],
+    queryFn: async () => {
+      await fetchThreads(page);
     },
-    [hasMore, loadingMore, categorySlug, fetchCategoryThreads],
-  );
+    keepPreviousData: true,
+  });
 
+  // Utilities
+  const formatDate = (date?: string) =>
+    date
+      ? new Date(date).toLocaleString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Unknown";
+
+  const timeAgo = (date?: string) => (date ? dayjs(date).fromNow() : "unknown");
+
+  // Pagination handlers
+  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setPage((p) => (p < lastPage ? p + 1 : p));
+
+  // Reset threads when component unmounts
   useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, {
-      threshold: 0.1,
-      rootMargin: "100px",
-    });
-    if (loader.current) observer.observe(loader.current);
-    return () => observer.disconnect();
-  }, [handleObserver]);
-
-  // Optimistic thread creation
-  const handleCreateThread = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !content || !category || !user) return;
-
-    const tempSlug = `temp-${Date.now()}`;
-    const tempThread: Thread = {
-      id: -1,
-      title,
-      slug: tempSlug,
-      content,
-      created_at: new Date().toISOString(),
-      user: { id: user.id, name: user.name },
-      category: {
-        id: `${category.id}`,
-        name: category.name,
-        slug: category.slug,
-      },
-      optimistic: true,
-      comment_count: 0,
-    };
-
-    addOptimistic(tempThread);
-    setShowForm(false);
-    setTitle("");
-    setContent("");
-
-    try {
-      const res = await fetch("/api/threads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          content,
-          category_id: category.id,
-        }),
-      });
-      const realThread = await res.json();
-      replaceThread(tempSlug, realThread);
-    } catch (err) {
-      removeThread(tempSlug);
-      alert("Error creating thread: " + (err as Error).message);
-    }
-  };
-
-  // Helpers
-  const timeAgo = (date: string) => {
-    const now = new Date();
-    const past = new Date(date);
-    const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
-    if (diffInSeconds < 60) return "just now";
-    if (diffInSeconds < 3600)
-      return `${Math.floor(diffInSeconds / 60)} minute${
-        Math.floor(diffInSeconds / 60) > 1 ? "s" : ""
-      } ago`;
-    if (diffInSeconds < 86400)
-      return `${Math.floor(diffInSeconds / 3600)} hour${
-        Math.floor(diffInSeconds / 3600) > 1 ? "s" : ""
-      } ago`;
-    return `${Math.floor(diffInSeconds / 86400)} day${
-      Math.floor(diffInSeconds / 86400) > 1 ? "s" : ""
-    } ago`;
-  };
-
-  const getUserInitials = (name: string) => {
-    if (!name) return "?";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  if (isLoading && threads.length === 0) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner}></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className={styles.error}>Error loading threads</div>;
-  }
+    return () => setThreads([]);
+  }, []);
 
   return (
     <div className={styles.container}>
-      {/* Breadcrumbs */}
-      <div className={styles.breadcrumbs}>
-        <Link to="/" className={styles.breadcrumbLink}>
-          Home
-        </Link>
-        <span className={styles.breadcrumbSeparator}>›</span>
-        <Link to="/categories" className={styles.breadcrumbLink}>
-          Categories
-        </Link>
-        <span className={styles.breadcrumbSeparator}>›</span>
-        <span className={styles.breadcrumbCurrent}>
-          {category?.name || categorySlug}
-        </span>
-      </div>
+      <h1 className={styles.pageTitle}>Recent Threads</h1>
 
-      {/* Category Header */}
-      {category && (
-        <div className={styles.categoryHeader}>
-          <h1 className={styles.categoryTitle}>{category.name}</h1>
-          {category.description && (
-            <p className={styles.categoryDescription}>{category.description}</p>
-          )}
-          <div className={styles.categoryStats}>
-            <span className={styles.statItem}>
-              <span className={styles.statIcon}>🧵</span>
-              {category.thread_count ?? threads.length} threads
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Create Thread Form */}
-      {isAuth ? (
-        <>
-          {!showForm && (
-            <button
-              onClick={() => setShowForm(true)}
-              className={styles.createButton}
-            >
-              Create a Thread
-            </button>
-          )}
-          {showForm && (
-            <form onSubmit={handleCreateThread} className={styles.createForm}>
-              <input
-                type="text"
-                placeholder="Thread Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-              <textarea
-                placeholder="Thread Content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                required
-              />
-              <button type="submit">Submit</button>
-              <button type="button" onClick={() => setShowForm(false)}>
-                Cancel
-              </button>
-            </form>
-          )}
-        </>
+      {isLoading || isFetching ? (
+        <p>Loading threads...</p>
+      ) : threads.length === 0 ? (
+        <p>No threads found.</p>
       ) : (
-        <Link to="/login" className={styles.createButton}>
-          Sign in to post
-        </Link>
-      )}
-
-      {/* Thread List */}
-      <div className={styles.threadList}>
-        {threads.length === 0 ? (
-          <div className={styles.emptyState}>
-            <span className={styles.emptyIcon}>💬</span>
-            <h3>No threads yet</h3>
-            <p>Be the first to start a conversation in this category!</p>
-          </div>
-        ) : (
-          threads.map((thread) => (
-            <div key={thread.id} className={styles.threadWrapper}>
-              <Link
-                to={`/threads/${thread.slug}`}
-                className={styles.threadLink}
-              >
-                <article
-                  className={styles.threadCard}
-                  style={thread.optimistic ? { opacity: 0.7 } : {}}
-                >
-                  <div className={styles.avatar}>
-                    {getUserInitials(thread.user?.name || "")}
-                  </div>
-                  <div className={styles.threadContent}>
-                    <h2 className={styles.threadTitle}>{thread.title}</h2>
-                    <p className={styles.threadPreview}>
-                      {thread.content
-                        ?.replace(/<[^>]*>/g, "")
-                        .substring(0, 120)}
-                      ...
-                    </p>
-
-                    <div className={styles.threadMeta}>
-                      <span className={styles.author}>
-                        by {thread.user?.name || "You"}
-                      </span>
-                      <span className={styles.dot}>·</span>
-                      <span className={styles.time}>
-                        {timeAgo(thread.created_at)}
-                      </span>
+        <div className={styles.threadList}>
+          {threads.map((thread: Thread) => (
+            <div key={thread.id} className={styles.threadCard}>
+              <div className={styles.threadHeader}>
+                <div className={styles.categoryBadge}>
+                  {thread.category?.name || "Unknown"}
+                </div>
+                <h2 className={styles.threadTitle}>
+                  <Link to={`/threads/${thread.slug}`}>{thread.title}</Link>
+                </h2>
+                <div className={styles.threadMeta}>
+                  <div className={styles.author}>
+                    <div className={styles.avatar}>
+                      {thread.user?.name
+                        ? thread.user.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                        : "?"}
                     </div>
-
-                    {/* --- THREAD FOOTER --- */}
-                    <div className={styles.threadFooter}>
-                      <span className={styles.replyCount}>
-                        {thread.comment_count ?? 0}{" "}
-                        {thread.comment_count === 1 ? "comment" : "comments"}
-                      </span>
-                      <span className={styles.likeCount}>
-                        {thread.like_count ?? 0}{" "}
-                        {thread.like_count === 1 ? "vote" : "votes"}
-                      </span>
-                      {thread.upvotes !== undefined &&
-                        thread.downvotes !== undefined && (
-                          <span className={styles.voteCount}>
-                            (+{thread.upvotes} / -{thread.downvotes})
-                          </span>
-                        )}
-                      <span className={styles.timeAgo}>
-                        {timeAgo(thread.created_at)}
-                      </span>
-                    </div>
+                    <span className={styles.authorName}>
+                      {thread.user?.name || "Unknown"}
+                    </span>
                   </div>
-                </article>
-              </Link>
-
-              {/* Optional placeholder for comments */}
-              <div className={styles.commentsPlaceholder}>
-                {thread.comment_count === 0 ? (
-                  <span>💬 No comments yet</span>
-                ) : null}
+                  <div className={styles.metaStats}>
+                    <span>📅 {timeAgo(thread.created_at)}</span>
+                    {thread.views !== undefined && (
+                      <span>👁️ {thread.views} views</span>
+                    )}
+                    {Array.isArray(thread.replies) && (
+                      <span>💬 {thread.replies.length} replies</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className={styles.threadContent}>
+                <div
+                  className={styles.contentBody}
+                  dangerouslySetInnerHTML={{ __html: thread.content || "" }}
+                />
               </div>
             </div>
-          ))
-        )}
-      </div>
-      {/* Infinite Scroll Loader */}
-      {hasMore && threads.length > 0 && (
-        <div ref={loader} className={styles.loader}>
-          {loadingMore ? (
-            <div className={styles.spinner}></div>
-          ) : (
-            <span className={styles.loaderText}>Scroll for more</span>
-          )}
+          ))}
         </div>
       )}
-      {!hasMore && threads.length > 0 && (
-        <div className={styles.endMessage}>You've reached the end</div>
-      )}
+
+      {/* Pagination */}
+      <div className={styles.pagination}>
+        <button onClick={handlePrev} disabled={page === 1}>
+          ← Previous
+        </button>
+        <span>
+          Page {page} of {lastPage}
+        </span>
+        <button onClick={handleNext} disabled={page === lastPage}>
+          Next →
+        </button>
+      </div>
     </div>
   );
 }

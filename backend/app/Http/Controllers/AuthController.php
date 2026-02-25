@@ -53,15 +53,23 @@ class AuthController extends Controller
     }
 
     // --- REFRESH JWT token---
+// app/Http/Controllers/AuthController.php
 public function refresh() {
-    $newToken = auth('api')->refresh(); // refresh current JWT
+    $newToken = auth('api')->refresh();
+    $user = auth('api')->user();
+
     return response()->json([
         'token' => $newToken,
         'token_type' => 'bearer',
-        'expires_in' => auth('api')->factory()->getTTL() * 60
+        'expires_in' => auth('api')->factory()->getTTL() * 60,
+        'user' => [                          // ← ADD THIS
+            'id'    => $user->id,
+            'name'  => $user->name,
+            'email' => $user->email,
+            'role'  => $user->role,
+        ]
     ]);
 }
-
 
     // --- LOGOUT ---
     public function logout() {

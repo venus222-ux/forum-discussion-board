@@ -1,3 +1,4 @@
+// src/pages/Home.tsx
 import { Link } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { useState, useEffect } from "react";
@@ -15,6 +16,7 @@ interface ActiveUser {
   id: number;
   name: string;
   postCount: number;
+  reputation: number;
 }
 
 interface Category {
@@ -32,13 +34,49 @@ const Home = () => {
     "conversations" | "help" | "categories"
   >("conversations");
 
-  const { threads, setThreads, fetchThreads, lastPage } = useThreadStore();
+  const {
+    threads,
+    setThreads,
+    fetchThreads,
+    fetchSearch,
+    lastPage,
+    isSearching,
+  } = useThreadStore();
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+
+  // --- DEBOUNCE SEARCH ---
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+      setPage(1);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // --- FETCH THREADS OR SEARCH ---
   useEffect(() => {
     if (activeTab === "conversations") {
-      fetchThreads(page);
+      if (debouncedQuery.trim()) {
+        fetchSearch(page, debouncedQuery);
+      } else {
+        fetchThreads(page);
+      }
     }
-  }, [page, activeTab]);
+  }, [page, activeTab, debouncedQuery]);
+
+  // Reset search when switching tabs
+  useEffect(() => {
+    if (activeTab !== "conversations") {
+      setSearchQuery("");
+      setDebouncedQuery("");
+      setPage(1);
+    } else {
+      setThreads([]);
+    }
+  }, [activeTab]);
 
   // --- ACTIVE USERS QUERY ---
   const { data: usersData } = useQuery({
@@ -46,13 +84,30 @@ const Home = () => {
     queryFn: async () => {
       const res = await API.get("/users/most-active");
       return res.data.map((u: any) => ({
-        ...u,
+        id: u.id,
+        name: u.name,
         postCount: u.threads_count ?? 0,
+        reputation: u.reputation ?? 0,
       }));
     },
     staleTime: 1000 * 60 * 5,
   });
-  const activeUsers = usersData || [];
+
+<<<<<<< HEAD
+  // --- SORT USERS BY POINTS (postCount + reputation) ---
+=======
+  // --- SORT USERS BY POINTS ---
+>>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+  interface ActiveUserWithPoints extends ActiveUser {
+    points: number;
+  }
+
+  const activeUsersWithPoints: ActiveUserWithPoints[] = (usersData || [])
+    .map((user) => ({
+      ...user,
+      points: (user.postCount ?? 0) + (user.reputation ?? 0),
+    }))
+    .sort((a, b) => b.points - a.points);
 
   // --- CATEGORIES QUERY ---
   const { data: categoriesData } = useQuery({
@@ -85,7 +140,9 @@ const Home = () => {
         <h1 className={styles.logo}># Typeforum</h1>
         <div className={styles.tabs}>
           <button
-            className={`${styles.tab} ${activeTab === "conversations" ? styles.activeTab : ""}`}
+            className={`${styles.tab} ${
+              activeTab === "conversations" ? styles.activeTab : ""
+            }`}
             onClick={() => {
               setActiveTab("conversations");
               setPage(1);
@@ -95,7 +152,9 @@ const Home = () => {
             Conversations
           </button>
           <button
-            className={`${styles.tab} ${activeTab === "categories" ? styles.activeTab : ""}`}
+            className={`${styles.tab} ${
+              activeTab === "categories" ? styles.activeTab : ""
+            }`}
             onClick={() => setActiveTab("categories")}
           >
             Categories
@@ -109,11 +168,30 @@ const Home = () => {
           {/* CONVERSATIONS */}
           {activeTab === "conversations" && (
             <>
+              {/* SEARCH INPUT */}
+              {/* SEARCH INPUT */}
+              <div className={styles.searchContainer}>
+                <div className={styles.searchWrapper}>
+                  <span className={styles.searchIcon}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Search conversations... (e.g., title:foo content:bar)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={styles.searchInput}
+                  />
+                </div>
+              </div>
+
               <div className={styles.threadList}>
                 {threads.length === 0 ? (
                   <div className={styles.emptyState}>
-                    <p>No conversations yet.</p>
-                    {isAuth && (
+                    <p>
+                      {isSearching
+                        ? "No results found."
+                        : "No conversations yet."}
+                    </p>
+                    {isAuth && !isSearching && (
                       <Link
                         to="/threads/create"
                         className={styles.createButton}
@@ -123,9 +201,13 @@ const Home = () => {
                     )}
                   </div>
                 ) : (
-                  threads.map((thread: Thread) => (
+                  threads.map((thread: Thread, index) => (
                     <Link
-                      key={thread.id}
+<<<<<<< HEAD
+                      key={`${thread.id}-${thread.slug}-${index}`} // ✅ unique key
+=======
+                      key={`${thread.id}-${thread.slug}-${index}`}
+>>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
                       to={`/threads/${thread.slug}`}
                       className={styles.threadLink}
                     >
@@ -237,7 +319,7 @@ const Home = () => {
         <aside className={styles.sidebar}>
           <h3 className={styles.sidebarTitle}>Most active users</h3>
           <div className={styles.userList}>
-            {activeUsers.length === 0
+            {activeUsersWithPoints.length === 0
               ? Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className={styles.userItem}>
                     <div className={styles.userAvatarSkeleton} />
@@ -247,7 +329,7 @@ const Home = () => {
                     </div>
                   </div>
                 ))
-              : activeUsers.map((user: ActiveUser) => (
+              : activeUsersWithPoints.map((user) => (
                   <div key={user.id} className={styles.userItem}>
                     <div className={styles.userAvatar}>
                       <span>{getUserInitials(user.name)}</span>
@@ -255,7 +337,7 @@ const Home = () => {
                     <div className={styles.userInfo}>
                       <span className={styles.userName}>{user.name}</span>
                       <span className={styles.userStats}>
-                        {user.postCount} posts
+                        {user.postCount} posts · {user.points} pts
                       </span>
                     </div>
                   </div>

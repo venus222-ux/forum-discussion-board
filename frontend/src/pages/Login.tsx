@@ -9,6 +9,8 @@ type Role = "user" | "moderator" | "admin";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false); // ← nice UX improvement
+
   const navigate = useNavigate();
 
   // Zustand actions
@@ -19,9 +21,9 @@ const Login = () => {
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      // Step 1: login and get token
       const res = await API.post("/login", { email, password });
       const token = res.data.token;
 
@@ -30,29 +32,27 @@ const Login = () => {
         return;
       }
 
-      // Step 2: store token locally and in axios headers
+      // Save token
       localStorage.setItem("token", token);
       API.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-      // Step 3: fetch user info (role, name, etc.)
-      const me = await API.get("/me");
-      const role = me.data.role as Role;
+      // Get full user data + role
+      const meRes = await API.get("/me");
+      const userData = meRes.data;
+      const role = userData.role as Role;
 
-      if (!role) {
-        toast.error("Login failed: invalid user role");
-        return;
-      }
-
-      // Step 4: store in Zustand
-      setAuth(token, role);
-
-      // Step 5: start auto refresh loop
+      // Update store
+      setAuth(token, role, userData);
       startTokenRefreshLoop();
 
-      toast.success(`Welcome back, ${me.data.name}!`);
+      toast.success(`Welcome back, ${userData.name}!`);
+
+      // 🔥 ALWAYS go to /dashboard (role-based logic is now inside Dashboard component)
       navigate("/dashboard", { replace: true });
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Invalid credentials");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,6 +69,7 @@ const Login = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
           <input
             className="form-control mb-3"
@@ -77,8 +78,11 @@ const Login = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
-          <button className="btn btn-primary w-100 mb-3">Login</button>
+          <button className="btn btn-primary w-100 mb-3" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
         </form>
 
         <div className="d-flex justify-content-between small">

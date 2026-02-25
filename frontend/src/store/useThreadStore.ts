@@ -1,7 +1,8 @@
+// src/store/useThreadStore.ts
 import { create } from "zustand";
 import API from "../api";
 
-// In useThreadStore.ts, update the Reply interface:
+// -------------------- TYPES --------------------
 
 export interface Reply {
   _id: string;
@@ -10,11 +11,16 @@ export interface Reply {
   createdAt: string;
   upvotes?: number;
   downvotes?: number;
-  isBest?: boolean; // Make sure this is included
+  isBest?: boolean;
   parentId?: string;
   children?: Reply[];
+  // 🔴 MODERATION
+  is_hidden?: boolean;
+  official_reply?: boolean;
+  moderation_reason?: string;
+  total_flags?: number; // optional for realtime
 }
-// In useThreadStore.ts, ensure the Thread interface has consistent user.id type
+
 export interface Thread {
   id: number;
   title: string;
@@ -22,11 +28,7 @@ export interface Thread {
   content: string;
   category_id: number;
   created_at: string;
-  user?: {
-    id: number | string; // Accept both
-    name: string;
-    reputation?: number;
-  };
+  user?: { id: number | string; name: string; reputation?: number };
   category?: { id: string; name: string; slug: string };
   reply_count?: number;
   like_count?: number;
@@ -35,6 +37,7 @@ export interface Thread {
   downvotes?: number;
   replies?: Reply[];
   best_comment_id?: string;
+  optimistic?: boolean;
 }
 
 interface ThreadStore {
@@ -42,71 +45,104 @@ interface ThreadStore {
   currentThread: Thread | null;
   isFetchingOne: boolean;
   lastPage: number;
+  cursor: string | null;
+  hasMore: boolean;
   isLoading: boolean;
   error: any | null;
 
+  // ---------------- THREADS ----------------
+  setThreads: (threads: Thread[]) => void;
+  setCurrentThread: (thread: Thread | null) => void;
+  addThreads: (threads: Thread[], nextCursor: string | null) => void;
+  addOptimistic: (thread: Thread) => void;
+  replaceThread: (tempSlug: string, thread: Thread) => void;
+  removeThread: (slug: string) => void;
+  setCursor: (cursor: string | null) => void;
+  setHasMore: (value: boolean) => void;
+  setLastPage: (page: number) => void;
+
+  fetchThreads: (page: number) => Promise<void>;
+  fetchThreadBySlug: (slug: string) => Promise<void>;
+
+  // ---------------- REPLIES ----------------
   setReplies: (slug: string, replies: Reply[]) => void;
   addReply: (slug: string, reply: Reply) => void;
   refetchReplies: (slug: string) => Promise<void>;
   markBestReply: (slug: string, commentId: string) => void;
 
-  setThreads: (threads: Thread[]) => void;
-  setCurrentThread: (thread: Thread | null) => void;
-  fetchThreadBySlug: (slug: string) => Promise<void>;
-  fetchThreads: (page: number) => Promise<void>;
+<<<<<<< HEAD
+=======
+  // ---------------- SEARCH ----------------
+  isSearching: boolean;
+  setIsSearching: (value: boolean) => void;
+  fetchSearch: (page: number, query: string) => Promise<void>;
+
+>>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
   reset: () => void;
 }
+
+// -------------------- STORE --------------------
 
 export const useThreadStore = create<ThreadStore>((set, get) => ({
   threads: [],
   currentThread: null,
   isFetchingOne: false,
   lastPage: 1,
+  cursor: null,
+  hasMore: true,
   isLoading: false,
   error: null,
-
-  setThreads: (threads) => set({ threads }),
-
-  // --- ADD THREADS (used in ThreadList)
-  addThreads: (newThreads: Thread[], cursor: any = null) =>
-    set((state) => ({
-      threads: [...state.threads, ...newThreads],
-      lastPage: cursor ?? state.lastPage,
-    })),
-
-  // --- ADD OPTIMISTIC THREAD
-  addOptimistic: (thread: Thread) =>
-    set((state) => ({
-      threads: [thread, ...state.threads],
-    })),
-
-  replaceThread: (tempSlug: string, realThread: Thread) =>
-    set((state) => ({
-      threads: state.threads.map((t) => (t.slug === tempSlug ? realThread : t)),
-    })),
-
-  removeThread: (tempSlug: string) =>
-    set((state) => ({
-      threads: state.threads.filter((t) => t.slug !== tempSlug),
-    })),
+<<<<<<< HEAD
+=======
+  isSearching: false,
+>>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
 
   // ---------------- THREADS ----------------
+  setThreads: (threads) => set({ threads }),
+  setCurrentThread: (thread) => set({ currentThread: thread }),
+  addThreads: (newThreads, nextCursor) => {
+    set({
+      threads: [...get().threads, ...newThreads],
+      cursor: nextCursor,
+      hasMore: Boolean(nextCursor),
+    });
+  },
+  addOptimistic: (thread) => set({ threads: [thread, ...get().threads] }),
+  replaceThread: (tempSlug, thread) =>
+    set({
+      threads: get().threads.map((t) => (t.slug === tempSlug ? thread : t)),
+    }),
+  removeThread: (slug) =>
+    set({ threads: get().threads.filter((t) => t.slug !== slug) }),
+  setCursor: (cursor) => set({ cursor }),
+  setHasMore: (value) => set({ hasMore: value }),
+  setLastPage: (page) => set({ lastPage: page }),
 
-  fetchThreads: async (page) => {
+  // ---------------- FETCH THREADS ----------------
+  fetchThreads: async (page = 1) => {
     set({ isLoading: true, error: null });
     try {
       const res = await API.get(`/threads/recent?page=${page}`);
       const threads: Thread[] = res.data.data || [];
       const lastPage: number = res.data.last_page || 1;
+      const nextCursor = page < lastPage ? String(page + 1) : null;
 
-      set({ threads, lastPage, isLoading: false });
+      if (page === 1) {
+        set({
+          threads,
+          lastPage,
+          cursor: nextCursor,
+          hasMore: Boolean(nextCursor),
+          isLoading: false,
+        });
+      } else {
+        get().addThreads(threads, nextCursor);
+        set({ lastPage, isLoading: false });
+      }
     } catch (err) {
       set({ error: err, isLoading: false });
     }
   },
-
-  setThreads: (threads) => set({ threads }),
-  setCurrentThread: (thread) => set({ currentThread: thread }),
 
   fetchThreadBySlug: async (slug) => {
     if (!slug) return;
@@ -118,18 +154,11 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
     }
 
     set({ isFetchingOne: true });
-
     try {
       const res = await API.get(`/threads/${slug}`);
       const thread: Thread = res.data;
 
-      // Ensure thread author is always mapped
-      if (!thread.user && res.data.user) {
-        thread.user = {
-          id: String(res.data.user.id), // always a string
-          name: res.data.user.name,
-        };
-      }
+      if (thread.user) thread.user.id = String(thread.user.id);
 
       set({
         currentThread: thread,
@@ -141,35 +170,29 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
       set({ isFetchingOne: false });
     }
   },
-  // ---------------- REPLIES ----------------
 
+  // ---------------- REPLIES ----------------
   setReplies: (slug, replies) =>
     set((state) => ({
       threads: state.threads.map((t) =>
-        t.slug === slug ? { ...t, replies } : t,
+        t.slug === slug ? { ...t, replies: [...replies] } : t,
       ),
       currentThread:
         state.currentThread?.slug === slug
-          ? { ...state.currentThread, replies }
+          ? { ...state.currentThread, replies: [...replies] }
           : state.currentThread,
     })),
 
   addReply: (slug, reply) =>
     set((state) => {
-      // 🔒 Prevent duplicates
       const exists = (list?: Reply[]): boolean => {
         if (!list) return false;
         return list.some((r) => r._id === reply._id || exists(r.children));
       };
+      if (exists(state.currentThread?.replies)) return state;
 
-      if (exists(state.currentThread?.replies)) {
-        return state;
-      }
-
-      // 🌳 Insert in correct place
       const insertReply = (list?: Reply[]): Reply[] => {
         if (!list) return [reply];
-
         return list.map((r) => {
           if (r._id === reply.parentId) {
             return {
@@ -177,11 +200,7 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
               children: r.children ? [...r.children, reply] : [reply],
             };
           }
-
-          return {
-            ...r,
-            children: insertReply(r.children),
-          };
+          return { ...r, children: insertReply(r.children) };
         });
       };
 
@@ -196,7 +215,6 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
               }
             : t,
         ),
-
         currentThread:
           state.currentThread?.slug === slug
             ? {
@@ -213,51 +231,30 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
     try {
       const res = await API.get(`/threads/${slug}/comments`);
       const replies: Reply[] = res.data;
-
-      const bestId = get().currentThread?.best_comment_id;
-
-      const markBest = (list?: Reply[]): Reply[] | undefined =>
-        list?.map((r) => ({
-          ...r,
-          isBest: r._id === get().currentThread?.best_comment_id,
-          children: markBest(r.children),
-        }));
-
-      get().setReplies(slug, markBest(replies) || []);
+      get().setReplies(slug, replies);
     } catch (err) {
       console.error("Failed to refetch replies:", err);
     }
   },
 
-  // In useThreadStore.ts, update the markBestReply method:
-
   markBestReply: (slug, commentId) =>
     set((state) => {
       const updateBest = (replies?: Reply[]): Reply[] | undefined => {
         if (!replies) return replies;
-
-        // First mark all as not best
         const updated = replies.map((r) => ({
           ...r,
           isBest: r._id === commentId,
           children: updateBest(r.children),
         }));
-
-        // Sort to bring best answer to top
         return [
           ...updated.filter((r) => r.isBest),
           ...updated.filter((r) => !r.isBest),
         ];
       };
 
-      // Update both threads list and currentThread
       const updatedThreads = state.threads.map((t) =>
         t.slug === slug
-          ? {
-              ...t,
-              replies: updateBest(t.replies),
-              best_comment_id: commentId,
-            }
+          ? { ...t, replies: updateBest(t.replies), best_comment_id: commentId }
           : t,
       );
 
@@ -270,17 +267,49 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
             }
           : state.currentThread;
 
-      return {
-        threads: updatedThreads,
-        currentThread: updatedCurrentThread,
-      };
+      return { threads: updatedThreads, currentThread: updatedCurrentThread };
     }),
 
+  // ---------------- SEARCH ----------------
+  setIsSearching: (value) => set({ isSearching: value }),
+
+  fetchSearch: async (page = 1, query: string) => {
+    set({ isLoading: true, error: null, isSearching: true });
+    try {
+      const res = await API.get(
+        `/threads/search?page=${page}&q=${encodeURIComponent(query)}`,
+      );
+      const threads: Thread[] = res.data.data || [];
+      const lastPage: number = res.data.last_page || 1;
+      const nextCursor = page < lastPage ? String(page + 1) : null;
+
+      if (page === 1) {
+        set({
+          threads,
+          lastPage,
+          cursor: nextCursor,
+          hasMore: Boolean(nextCursor),
+          isLoading: false,
+        });
+      } else {
+        get().addThreads(threads, nextCursor);
+        set({ lastPage, isLoading: false });
+      }
+    } catch (err) {
+      set({ error: err, isLoading: false });
+    }
+  },
+
+  // ---------------- RESET ----------------
   reset: () =>
     set({
       threads: [],
       currentThread: null,
       lastPage: 1,
+      cursor: null,
+      hasMore: true,
+      isLoading: false,
       error: null,
+      isSearching: false,
     }),
 }));

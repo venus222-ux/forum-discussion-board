@@ -1,0 +1,9 @@
+php artisan scout:import "App\Models\Thread"
+
+How It Works (Similar to StackOverflow):
+Basic Search: Enter keywords (e.g., "elasticsearch help") – searches across title and content.
+Advanced Filters: Use Elasticsearch query syntax like title:elasticsearch content:setup or title:(foo OR bar) for targeted searches, mimicking StackOverflow's operators.
+Pagination: Works like recent threads.
+Indexing: New/updated threads auto-index via Scout observers. Re-index manually if needed.
+Expansion: For more SO-like features (e.g., tags), add a tags field to Thread and index it.
+Test by creating threads, indexing, and searching. If issues, check Elasticsearch logs via docker logs forum_elasticsearch.

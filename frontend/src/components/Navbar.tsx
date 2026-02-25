@@ -1,69 +1,104 @@
+import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useStore } from "../store/useStore";
-import { useState, useEffect } from "react";
+import { useNotificationStore } from "../store/useNotificationStore";
 import styles from "../styles/Navbar.module.css";
-import Echo from "laravel-echo";
-import Pusher from "pusher-js";
+import echo from "../echo";
 
 export default function Navbar() {
-  const { isAuth, setIsAuth, theme, toggleTheme, user, setUser } = useStore();
+  const { isAuth, user, role, theme, toggleTheme, setIsAuth } = useStore();
   const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const {
+    notifications,
+    unreadCount,
+    fetchNotifications,
+    addRealtimeNotification,
+    markAsRead,
+    clearAll,
+    cursor,
+    hasMore,
+  } = useNotificationStore();
+
   const [scrolled, setScrolled] = useState(false);
   const [score, setScore] = useState(user?.reputation || 0);
   const [scoreHighlight, setScoreHighlight] = useState(false);
 
-  // ------------------- Scroll listener -------------------
+  // ------------------- Scroll effect -------------------
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ------------------- Pusher/Echo for live reputation -------------------
+  // ------------------- Initial fetch -------------------
+  useEffect(() => {
+    if (!isAuth) return;
+    fetchNotifications();
+  }, [isAuth]);
+
+  // ------------------- Realtime Notifications -------------------
   useEffect(() => {
     if (!isAuth || !user?.id) return;
 
-    const echo = new Echo({
-      broadcaster: "pusher",
-      key: import.meta.env.VITE_PUSHER_APP_KEY || "72f70b3c1eb4247fc505",
-      cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || "eu",
-      forceTLS: true,
-    });
-
     const channel = echo.private(`App.Models.User.${user.id}`);
-    channel.listen("UserReputationUpdated", (event: any) => {
-      if (event.reputation !== undefined) {
-        setScore(event.reputation);
-        setScoreHighlight(true); // trigger highlight animation
-        setUser((prev) => ({ ...prev, reputation: event.reputation }));
 
-        // Remove highlight after 1s
-        setTimeout(() => setScoreHighlight(false), 1000);
-      }
+    channel.notification((notification: any) => {
+      addRealtimeNotification({
+        id: notification.id,
+        type: notification.type,
+        read_at: null,
+        created_at: new Date().toISOString(),
+        data: notification.data,
+      });
     });
 
     return () => {
-      echo.leaveChannel(`App.Models.User.${user.id}`);
-      echo.disconnect();
+      echo.leave(`App.Models.User.${user.id}`);
     };
-  }, [isAuth, user?.id, setUser]);
+  }, [isAuth, user?.id]);
 
   const handleLogout = () => {
     setIsAuth(false);
     navigate("/login");
   };
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const getUserInitials = () =>
+    user?.name
+      ? user.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .substring(0, 2)
+      : "?";
 
-  const getUserInitials = () => {
-    if (!user?.name) return "?";
-    return user.name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
+  // ------------------- Infinite Scroll -------------------
+  const handleScrollNotifications = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 20 && hasMore) {
+      fetchNotifications(cursor);
+    }
+  };
+
+  // ------------------- Render notification -------------------
+  const renderNotification = (n: any) => {
+    const data = n.data;
+
+    if (data?.message) return data.message;
+
+    switch (data?.type) {
+      case "thread_comment":
+        return `💬 ${data.actor_name} commented on "${data.thread_title}"`;
+      case "thread_reply":
+        return `↩️ ${data.actor_name} replied to your comment`;
+      case "comment_liked":
+        return `👍 ${data.actor_name} liked your comment`;
+      case "best_answer":
+        return `🏆 Your comment was selected as best answer`;
+      default:
+        return "New notification";
+    }
   };
 
   return (
@@ -74,7 +109,7 @@ export default function Navbar() {
           <span className={styles.logoText}>Typeform</span>
         </Link>
 
-        {/* Desktop Navigation - Left tabs */}
+        {/* Desktop Nav */}
         <div className={styles.navTabs}>
           <NavLink
             to="/"
@@ -86,16 +121,15 @@ export default function Navbar() {
           </NavLink>
         </div>
 
-        {/* Right side actions */}
+        {/* Right Side */}
         <div className={styles.rightActions}>
           <Link
-            to={isAuth ? "/user/dashboard" : "/login"}
+            to={isAuth ? "/dashboard" : "/login"}
             className={styles.createPostBtn}
           >
             Create a post
           </Link>
 
-          {/* Desktop Score */}
           {isAuth && score > 0 && (
             <div
               className={`${styles.userScore} ${
@@ -109,20 +143,68 @@ export default function Navbar() {
           {isAuth ? (
             <div className={styles.userMenu}>
               <div className={styles.avatar}>{getUserInitials()}</div>
+
               <div className={styles.dropdown}>
                 <NavLink to="/dashboard" className={styles.dropdownItem}>
                   📊 Dashboard
                 </NavLink>
+
                 <NavLink to="/profile" className={styles.dropdownItem}>
                   👤 My Profile
                 </NavLink>
+
                 <div className={styles.dropdownDivider} />
+
                 <button
                   onClick={handleLogout}
                   className={`${styles.dropdownItem} ${styles.logoutBtn}`}
                 >
                   🚪 Logout
                 </button>
+
+                {/* ---------------- Notifications ---------------- */}
+                <div className={styles.notificationWrapper}>
+                  <button className={styles.bell}>
+                    🔔 {unreadCount > 0 && <span>{unreadCount}</span>}
+                  </button>
+
+                  <div
+                    className={styles.notificationDropdown}
+                    onScroll={handleScrollNotifications}
+                  >
+                    {notifications.length === 0 && (
+                      <div className={styles.notificationItem}>
+                        No notifications
+                      </div>
+                    )}
+
+                    {notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          markAsRead(n.id);
+                          if (n.data?.link) navigate(n.data.link); // optional link
+                        }}
+                        className={`${styles.notificationItem} ${!n.read_at ? styles.unread : ""}`}
+                      >
+                        {n.data?.message || renderNotification(n)}
+                      </div>
+                    ))}
+
+                    {hasMore && (
+                      <div className={styles.notificationItem}>Loading...</div>
+                    )}
+
+                    {notifications.length > 0 && (
+                      <button
+                        onClick={clearAll}
+                        className={`${styles.dropdownItem} ${styles.clearAllBtn}`}
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -131,108 +213,9 @@ export default function Navbar() {
             </Link>
           )}
 
-          <button
-            className={styles.themeToggle}
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-          >
+          <button className={styles.themeToggle} onClick={toggleTheme}>
             {theme === "light" ? "🌙" : "☀️"}
           </button>
-        </div>
-
-        {/* Mobile menu button */}
-        <button
-          className={styles.mobileMenuBtn}
-          onClick={toggleMenu}
-          aria-label="Toggle menu"
-        >
-          <span
-            className={`${styles.hamburger} ${isMenuOpen ? styles.open : ""}`}
-          />
-        </button>
-
-        {/* Mobile Menu */}
-        <div
-          className={`${styles.mobileMenu} ${isMenuOpen ? styles.menuOpen : ""}`}
-        >
-          {isAuth && (
-            <Link to="/dashboard?create=true" className={styles.createButton}>
-              + New Thread
-            </Link>
-          )}
-
-          {isAuth ? (
-            <>
-              {/* Mobile Score */}
-              {score > 0 && (
-                <div
-                  className={`${styles.mobileScore} ${
-                    scoreHighlight ? styles.scoreHighlight : ""
-                  }`}
-                >
-                  ⭐ {score}
-                </div>
-              )}
-
-              <div className={styles.mobileUserInfo}>
-                <div className={styles.mobileAvatar}>{getUserInitials()}</div>
-                <span className={styles.mobileUserName}>
-                  {user?.name || "User"}
-                </span>
-              </div>
-              <NavLink
-                to="/dashboard"
-                className={styles.mobileNavLink}
-                onClick={toggleMenu}
-              >
-                📊 Dashboard
-              </NavLink>
-              <NavLink
-                to="/profile"
-                className={styles.mobileNavLink}
-                onClick={toggleMenu}
-              >
-                👤 Profile
-              </NavLink>
-              <NavLink
-                to="/settings"
-                className={styles.mobileNavLink}
-                onClick={toggleMenu}
-              >
-                ⚙️ Settings
-              </NavLink>
-              <button
-                onClick={() => {
-                  handleLogout();
-                  toggleMenu();
-                }}
-                className={styles.mobileLogoutBtn}
-              >
-                🚪 Logout
-              </button>
-            </>
-          ) : (
-            <Link
-              to="/login"
-              className={styles.mobileLoginBtn}
-              onClick={toggleMenu}
-            >
-              Log in
-            </Link>
-          )}
-
-          <div className={styles.mobileThemeSection}>
-            <span>Theme</span>
-            <button
-              className={styles.mobileThemeToggle}
-              onClick={() => {
-                toggleTheme();
-                toggleMenu();
-              }}
-            >
-              {theme === "light" ? "🌙 Dark" : "☀️ Light"}
-            </button>
-          </div>
         </div>
       </div>
     </nav>

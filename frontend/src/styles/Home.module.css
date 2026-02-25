@@ -726,3 +726,55 @@
     gap: 1rem;
   }
 }
+
+/* Search Container - keeps spacing consistent */
+.searchContainer {
+  margin-bottom: 1.5rem;
+}
+
+/* Wrapper for icon and input */
+.searchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Search icon */
+.searchIcon {
+  position: absolute;
+  left: 1rem;
+  font-size: 1.2rem;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+/* Improved input field */
+.searchInput {
+  width: 100%;
+  padding: 0.85rem 1rem 0.85rem 3rem; /* left padding for icon */
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.searchInput:focus + .searchIcon {
+  color: var(--color-primary);
+}
+
+/* Placeholder styling */
+.searchInput::placeholder {
+  color: var(--color-text-tertiary);
+  opacity: 0.8;
+}

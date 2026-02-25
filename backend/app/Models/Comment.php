@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Comment extends Model
 {
-protected $connection = 'mongodb';
-protected $collection = 'forum_comments';
+    protected $connection = 'mongodb';
+    protected $collection = 'forum_comments';
 
-    protected $fillable = [ 
+    protected $fillable = [
         'threadId',
         'authorId',
         'content',
@@ -24,7 +26,10 @@ protected $collection = 'forum_comments';
         'isEdited',
         'attachments',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'is_hidden',
+        'official_reply',
+        'moderation_reason',
     ];
 
     protected $casts = [
@@ -34,10 +39,26 @@ protected $collection = 'forum_comments';
         'updatedAt' => 'datetime'
     ];
 
-    public $timestamps = false;
+    const CREATED_AT = 'createdAt';
+    const UPDATED_AT = 'updatedAt';
+    public $timestamps = true;
 
-    public function replies()
+    // Parent comment
+    public function parent(): BelongsTo
     {
-        return $this->hasMany(Comment::class, 'parentId', '_id');
+        return $this->belongsTo(Comment::class, 'parentId', '_id');
     }
+
+    // Nested children (1 level)
+    public function children(): HasMany
+    {
+        return $this->hasMany(Comment::class, 'parentId', '_id')->with('user');
+    }
+
+    // User who posted comment
+    public function user(): BelongsTo
+{
+    return $this->belongsTo(User::class, 'authorId', 'id');
+}
+
 }

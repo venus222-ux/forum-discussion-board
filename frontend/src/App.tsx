@@ -32,12 +32,6 @@ const App = () => {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/categories" element={<CategoryList />} />
-        <Route
-          path="/categories/:categorySlug/threads"
-          element={<ThreadList />}
-        />
-        <Route path="/threads/:slug" element={<ThreadDetail />} />
 
         <Route
           path="/login"
@@ -49,6 +43,13 @@ const App = () => {
             !isAuth ? <Register /> : <Navigate to="/dashboard" replace />
           }
         />
+
+        <Route path="/categories" element={<CategoryList />} />
+        <Route
+          path="/categories/:categorySlug/threads"
+          element={<ThreadList />}
+        />
+        <Route path="/threads/:slug" element={<ThreadDetail />} />
 
         {/* Single dashboard route */}
         <Route

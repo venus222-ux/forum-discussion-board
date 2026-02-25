@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,   // existing users
             ForumSeeder::class,  // categories + threads
+           // CommentSeeder::class,
         ]);
     }
 }

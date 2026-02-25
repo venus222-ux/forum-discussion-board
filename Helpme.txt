@@ -1,93 +1,146 @@
-🚀 1. Product Vision 
+# Forum Discussion Board
 
-Build a Reddit-like / StackOverflow-like forum with:
+A scalable, production-ready discussion platform inspired by Reddit and StackOverflow. This project is designed with a modern full-stack architecture focused on performance, real-time interaction, and horizontal scalability.
 
-Categories & threads
-Nested comments (infinite depth)
-Voting & moderation
-Real-time notifications (mentions, replies)
-Fast search (Elasticsearch)
-Scalable comment storage (MongoDB)
+---
 
-🧱 2. Tech Architecture
-🔹 Backend (Laravel 12)
+## 1. Product Vision
 
-REST + GraphQL API
-Auth: JWT
-MySQL → relational data (users, categories, threads)
-MongoDB → comments (nested, flexible)
-Redis → cache + queues
-Pusher → real-time events
-Elasticsearch → search
+The goal of this project is to build a professional forum system that supports:
 
-🔹 Frontend (React + Vite + TS)
+* Categories and discussion threads
+* Infinite-depth nested comments
+* Voting system and moderation tools
+* Real-time notifications (mentions and replies)
+* High-performance full-text search using Elasticsearch
+* Scalable comment storage using MongoDB
 
-Zustand → state management
-Axios → API
-TanStack Query → data fetching/cache
-Laravel Echo → real-time
-Bootstrap → UI
+The platform separates structured relational data from deeply nested discussion data to optimize performance and maintain flexibility at scale.
 
-📦 3. Core Features (Product Backlog)
-👤 Authentication
+---
 
-Register / Login (JWT)
-Roles: user, moderator, admin
+## 2. Tech Architecture
 
-📁 Categories
+### Backend (Laravel 12)
 
-Create / list categories
-Nested categories (optional)
+The backend is built using Laravel 12 and follows a clean API-driven architecture.
 
-🧵 Threads
+* API Layer: REST and GraphQL APIs
+* Authentication: JWT (JSON Web Tokens)
+* MySQL: Relational data (users, categories, threads, votes, reports)
+* MongoDB: Nested and flexible comment storage
+* Redis: Caching and queue management
+* Pusher: Real-time event broadcasting
+* Elasticsearch: Full-text search engine
 
-Create thread
-Edit/delete thread
+The system is designed for scalability, allowing independent optimization of relational data and large comment trees.
 
-Pagination
+---
 
-💬 Comments (MongoDB)
+### Frontend (React + Vite + TypeScript)
 
-Nested replies (tree structure)
-Upvotes/downvotes
-Mentions (@user)
+The frontend is built as a modern single-page application.
 
-🔔 Notifications
+* React with Vite and TypeScript
+* Zustand for global state management
+* Axios for API communication
+* TanStack Query for data fetching and caching
+* Laravel Echo for real-time updates
+* Bootstrap for UI components and layout
 
-Reply notifications
-Mention notifications
-Real-time via Pusher
+This setup ensures fast development, strong type safety, and optimized client-side performance.
 
-🔍 Search
+---
 
-Full-text search (Elasticsearch)
-Filter by category, tags
+## 3. Core Features (Product Backlog)
 
-🛡 Moderation
+### Authentication
 
-Report content
-Delete/lock thread
-Ban users
+* User registration and login using JWT
+* Role-based access control: user, moderator, admin
 
+### Categories
 
+* Create and list categories
+* Optional nested category structure
 
-🧩 4. Suggested Data Design
-MySQL (Relational)
-users
-categories
-threads
-votes
-reports
+### Threads
 
+* Create new threads
+* Edit and delete threads
+* Pagination for thread listings
 
-MongoDB (Comments)
+### Comments (MongoDB)
+
+* Infinite nested replies (tree structure)
+* Upvote and downvote system
+* User mentions using @username
+
+### Notifications
+
+* Reply notifications
+* Mention notifications
+* Real-time delivery via Pusher
+
+### Search
+
+* Full-text search powered by Elasticsearch
+* Filtering by category and tags
+
+### Moderation
+
+* Report inappropriate content
+* Delete or lock threads
+* Ban users
+
+---
+
+## 4. Suggested Data Design
+
+### MySQL (Relational Database)
+
+Main tables:
+
+* users
+* categories
+* threads
+* votes
+* reports
+
+These tables manage structured relationships, authentication, permissions, and moderation data.
+
+---
+
+### MongoDB (Comments Collection)
+
+Comments are stored as flexible documents to support deep nesting and high scalability.
+
+Example structure:
+
 {
-  "_id": "...",
-  "thread_id": 1,
-  "user_id": 2,
-  "content": "Reply",
-  "parent_id": null,
-  "children": [],
-  "created_at": "...",
-  "votes": 10
+"_id": "...",
+"thread_id": 1,
+"user_id": 2,
+"content": "Reply",
+"parent_id": null,
+"children": [],
+"created_at": "...",
+"votes": 10
 }
+
+This design allows efficient traversal of comment trees and horizontal scaling for large discussions.
+
+---
+
+## Architecture Philosophy
+
+* Separation of concerns between relational and document data
+* API-first backend design
+* Real-time user experience
+* Scalable infrastructure ready for high-traffic communities
+
+---
+
+## License
+
+This project is intended for educational and portfolio purposes. License terms can be adjusted depending on project requirements.

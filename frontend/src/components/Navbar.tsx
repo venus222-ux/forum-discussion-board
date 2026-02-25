@@ -2,18 +2,52 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useStore } from "../store/useStore";
 import { useState, useEffect } from "react";
 import styles from "../styles/Navbar.module.css";
+import Echo from "laravel-echo";
+import Pusher from "pusher-js";
 
 export default function Navbar() {
-  const { isAuth, setIsAuth, theme, toggleTheme, user } = useStore();
+  const { isAuth, setIsAuth, theme, toggleTheme, user, setUser } = useStore();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [score, setScore] = useState(user?.reputation || 0);
+  const [scoreHighlight, setScoreHighlight] = useState(false);
 
+  // ------------------- Scroll listener -------------------
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // ------------------- Pusher/Echo for live reputation -------------------
+  useEffect(() => {
+    if (!isAuth || !user?.id) return;
+
+    const echo = new Echo({
+      broadcaster: "pusher",
+      key: import.meta.env.VITE_PUSHER_APP_KEY || "72f70b3c1eb4247fc505",
+      cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || "eu",
+      forceTLS: true,
+    });
+
+    const channel = echo.private(`App.Models.User.${user.id}`);
+    channel.listen("UserReputationUpdated", (event: any) => {
+      if (event.reputation !== undefined) {
+        setScore(event.reputation);
+        setScoreHighlight(true); // trigger highlight animation
+        setUser((prev) => ({ ...prev, reputation: event.reputation }));
+
+        // Remove highlight after 1s
+        setTimeout(() => setScoreHighlight(false), 1000);
+      }
+    });
+
+    return () => {
+      echo.leaveChannel(`App.Models.User.${user.id}`);
+      echo.disconnect();
+    };
+  }, [isAuth, user?.id, setUser]);
 
   const handleLogout = () => {
     setIsAuth(false);
@@ -40,53 +74,39 @@ export default function Navbar() {
           <span className={styles.logoText}>Typeform</span>
         </Link>
 
-        {/* Desktop Navigation - Left side tabs */}
+        {/* Desktop Navigation - Left tabs */}
         <div className={styles.navTabs}>
           <NavLink
-            to="/activity"
+            to="/"
             className={({ isActive }) =>
               `${styles.tabLink} ${isActive ? styles.activeTab : ""}`
             }
           >
-            Activity
-          </NavLink>
-          <NavLink
-            to="/library"
-            className={({ isActive }) =>
-              `${styles.tabLink} ${isActive ? styles.activeTab : ""}`
-            }
-          >
-            Library
-          </NavLink>
-          <NavLink
-            to="/typeform-qa"
-            className={({ isActive }) =>
-              `${styles.tabLink} ${isActive ? styles.activeTab : ""}`
-            }
-          >
-            Typeform Q&A
-          </NavLink>
-          <NavLink
-            to="/videoask-qa"
-            className={({ isActive }) =>
-              `${styles.tabLink} ${isActive ? styles.activeTab : ""}`
-            }
-          >
-            VideoAsk Q&A
+            Home
           </NavLink>
         </div>
 
         {/* Right side actions */}
         <div className={styles.rightActions}>
           <Link
-            to={isAuth ? "/dashboard" : "/login"}
+            to={isAuth ? "/user/dashboard" : "/login"}
             className={styles.createPostBtn}
           >
             Create a post
           </Link>
 
+          {/* Desktop Score */}
+          {isAuth && score > 0 && (
+            <div
+              className={`${styles.userScore} ${
+                scoreHighlight ? styles.scoreHighlight : ""
+              }`}
+            >
+              ⭐ {score}
+            </div>
+          )}
+
           {isAuth ? (
-            // User menu for logged in
             <div className={styles.userMenu}>
               <div className={styles.avatar}>{getUserInitials()}</div>
               <div className={styles.dropdown}>
@@ -95,9 +115,6 @@ export default function Navbar() {
                 </NavLink>
                 <NavLink to="/profile" className={styles.dropdownItem}>
                   👤 My Profile
-                </NavLink>
-                <NavLink to="/settings" className={styles.dropdownItem}>
-                  ⚙️ Settings
                 </NavLink>
                 <div className={styles.dropdownDivider} />
                 <button
@@ -109,13 +126,11 @@ export default function Navbar() {
               </div>
             </div>
           ) : (
-            // Login button for logged out
             <Link to="/login" className={styles.loginBtn}>
               Log in
             </Link>
           )}
 
-          {/* Theme toggle */}
           <button
             className={styles.themeToggle}
             onClick={toggleTheme}
@@ -140,55 +155,25 @@ export default function Navbar() {
         <div
           className={`${styles.mobileMenu} ${isMenuOpen ? styles.menuOpen : ""}`}
         >
-          <NavLink
-            to="/activity"
-            className={({ isActive }) =>
-              `${styles.mobileNavLink} ${isActive ? styles.mobileActive : ""}`
-            }
-            onClick={toggleMenu}
-          >
-            Activity
-          </NavLink>
-          <NavLink
-            to="/library"
-            className={({ isActive }) =>
-              `${styles.mobileNavLink} ${isActive ? styles.mobileActive : ""}`
-            }
-            onClick={toggleMenu}
-          >
-            Library
-          </NavLink>
-          <NavLink
-            to="/typeform-qa"
-            className={({ isActive }) =>
-              `${styles.mobileNavLink} ${isActive ? styles.mobileActive : ""}`
-            }
-            onClick={toggleMenu}
-          >
-            Typeform Q&A
-          </NavLink>
-          <NavLink
-            to="/videoask-qa"
-            className={({ isActive }) =>
-              `${styles.mobileNavLink} ${isActive ? styles.mobileActive : ""}`
-            }
-            onClick={toggleMenu}
-          >
-            VideoAsk Q&A
-          </NavLink>
-
-          <div className={styles.mobileCreatePost}>
-            <Link
-              to={isAuth ? "/dashboard" : "/login"}
-              className={styles.mobileCreatePostBtn}
-              onClick={toggleMenu}
-            >
-              Create a post
+          {isAuth && (
+            <Link to="/dashboard?create=true" className={styles.createButton}>
+              + New Thread
             </Link>
-          </div>
+          )}
 
           {isAuth ? (
             <>
+              {/* Mobile Score */}
+              {score > 0 && (
+                <div
+                  className={`${styles.mobileScore} ${
+                    scoreHighlight ? styles.scoreHighlight : ""
+                  }`}
+                >
+                  ⭐ {score}
+                </div>
+              )}
+
               <div className={styles.mobileUserInfo}>
                 <div className={styles.mobileAvatar}>{getUserInitials()}</div>
                 <span className={styles.mobileUserName}>

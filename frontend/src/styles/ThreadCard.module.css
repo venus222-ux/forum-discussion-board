@@ -1,0 +1,175 @@
+/* Add to src/styles/ThreadCard.module.css */
+
+.threadWrapper {
+  margin-bottom: 0.5rem;
+}
+
+.threadLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.threadCard {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.threadCard:hover {
+  border-color: #1a5aff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.optimistic {
+  opacity: 0.7;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.threadContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.threadTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1e24;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.acceptedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: #16a34a;
+  color: white;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.acceptedBadge svg {
+  width: 12px;
+  height: 12px;
+  stroke: white;
+}
+
+.threadPreview {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0.5rem;
+  line-height: 1.5;
+}
+
+.threadMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+  flex-wrap: wrap;
+}
+
+.author {
+  color: #1a5aff;
+  font-weight: 500;
+}
+
+.category {
+  background: #f3f4f6;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  color: #4b5563;
+}
+
+.dot {
+  color: #9ca3af;
+}
+
+.time,
+.comments,
+.likes {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .threadCard {
+    background: #1a1e24;
+    border-color: #374151;
+  }
+
+  .threadTitle {
+    color: #f3f4f6;
+  }
+
+  .threadPreview {
+    color: #9ca3af;
+  }
+
+  .author {
+    color: #60a5fa;
+  }
+
+  .category {
+    background: #2d3138;
+    color: #9ca3af;
+  }
+
+  .dot {
+    color: #4b5563;
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .threadCard {
+    padding: 0.75rem;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  .threadTitle {
+    font-size: 1rem;
+  }
+
+  .acceptedBadge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+  }
+}

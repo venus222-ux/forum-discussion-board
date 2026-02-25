@@ -15,6 +15,12 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'password',
         'role',
+        'accepted_answers',
+        'given_best_answers',
+        'total_upvotes',
+        'total_downvotes',
+        'reputation',
+
     ];
 
     protected $hidden = [
@@ -27,6 +33,10 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'accepted_answers' => 'integer',
+            'given_best_answers' => 'integer',
+            'total_upvotes' => 'integer',
+            'total_downvotes' => 'integer',
         ];
     }
 
@@ -45,6 +55,14 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(\App\Models\Thread::class);
     }
 
+
+    public function adjustReputation(int $points)
+    {
+        $this->increment('reputation', $points);
+    }
+
     // If needed later: comments()
-    // public function comments() { return $this->hasMany(Comment::class); }
+     public function comments() {
+        return $this->hasMany(Comment::class);
+     }
 }

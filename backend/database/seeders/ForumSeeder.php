@@ -13,6 +13,7 @@ class ForumSeeder extends Seeder
 {
     public function run()
     {
+        Thread::truncate();
         $faker = Faker::create();
 
         // 1. Create 20 tech categories
@@ -89,7 +90,7 @@ class ForumSeeder extends Seeder
             }
         }
 
-        // 6. Create threads with realistic timestamps
+        // 6. Create threads with realistic timestamps and 0 counts
         foreach ($threadsToCreate as $threadData) {
             $category = $threadData['category'];
             $user = $threadData['user'];
@@ -108,15 +109,15 @@ class ForumSeeder extends Seeder
                 'is_pinned' => (mt_rand(1, 100) <= 5),
                 'is_locked' => (mt_rand(1, 100) <= 2),
                 'views' => mt_rand(0, 1000),
-                'upvotes' => mt_rand(0, 200),
-                'downvotes' => mt_rand(0, 50),
-                'comment_count' => mt_rand(0, 100),
+                'upvotes' => 0,          // set to 0
+                'downvotes' => 0,        // set to 0
+                'comment_count' => 0,    // set to 0
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt,
                 'last_activity_at' => $lastActivityAt,
             ]);
         }
 
-        $this->command->info("Seeded 20 categories and 1000 threads with hot topics successfully!");
+        $this->command->info("Seeded 20 categories and 1000 threads with 0 votes and comments successfully!");
     }
 }

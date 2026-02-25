@@ -1,107 +1,133 @@
 // src/pages/ThreadDetail.tsx
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import API from "../api";
+import { useQuery } from "@tanstack/react-query";
 import { useStore } from "../store/useStore";
-import { useThreadStore } from "../store/useThreadStore"; // your Zustand store
+import { useThreadStore, Reply } from "../store/useThreadStore";
 import styles from "../styles/ThreadDetail.module.css";
+import CommentTree from "../components/CommentTree";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
 
-interface Thread {
-  id: number;
-  title: string;
-  content: string;
-  user: { id: number; name: string; avatar?: string };
-  category: { id: number; name: string; slug: string };
-  created_at: string;
-  views?: number;
-  likes?: number;
-  replies?: number;
-}
-
-interface Reply {
-  id: number;
-  content: string;
-  user: { id: number; name: string };
-  created_at: string;
-  likes?: number;
-}
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 
 export default function ThreadDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuth, user } = useStore();
   const navigate = useNavigate();
-  const { threads, addThreads } = useThreadStore();
 
-  const [thread, setThread] = useState<Thread | null>(
-    threads.find((t) => t.slug === slug) || null,
-  );
-  const [replies, setReplies] = useState<Reply[]>([]);
-  const [loadingThread, setLoadingThread] = useState(!thread);
-  const [loadingReplies, setLoadingReplies] = useState(true);
+  // Zustand
+  const currentThread = useThreadStore((s) => s.currentThread);
+  const isFetchingOne = useThreadStore((s) => s.isFetchingOne);
+  const fetchThreadBySlug = useThreadStore((s) => s.fetchThreadBySlug);
+  const setReplies = useThreadStore((s) => s.setReplies);
+  const addReply = useThreadStore((s) => s.addReply);
+
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"discussion" | "details">(
     "discussion",
   );
 
-  // ---------------- FETCH THREAD (from cache or API) ----------------
+  // ---------------- FETCH THREAD ----------------
   useEffect(() => {
     if (!slug) return;
-
-    if (!thread) fetchThread();
-    else setLoadingThread(false);
-
-    fetchReplies();
+    useThreadStore.getState().setCurrentThread(null); // reset
+    fetchThreadBySlug(slug);
   }, [slug]);
 
-  const fetchThread = async () => {
-    setLoadingThread(true);
-    try {
-      const res = await API.get(`/threads/${slug}`);
-      setThread(res.data);
-      addThreads([res.data], null); // cache in Zustand
-    } catch (err) {
-      console.error("Error fetching thread:", err);
-    } finally {
-      setLoadingThread(false);
-    }
-  };
+  // ---------------- FETCH COMMENTS ----------------
+  const {
+    data: replies = [],
+    isLoading: loadingReplies,
+    refetch: refetchReplies,
+  } = useQuery<Reply[]>({
+    queryKey: ["threadReplies", slug],
+    queryFn: async () => {
+      if (!slug) return [];
+      const res = await fetch(`/api/threads/${slug}/comments`);
+      if (!res.ok) throw new Error("Failed to fetch comments");
+      const data: Reply[] = await res.json();
 
-  // ---------------- FETCH REPLIES ----------------
-  const fetchReplies = async () => {
-    setLoadingReplies(true);
-    try {
-      const res = await API.get(`/threads/${slug}/replies`);
-      setReplies(res.data || []);
-    } catch (err) {
-      console.log("No replies endpoint");
-    } finally {
-      setLoadingReplies(false);
-    }
-  };
+      // mark best comment
+      const enrichedReplies = data.map((comment) => ({
+        ...comment,
+        isBest: currentThread?.best_comment_id === comment._id,
+      }));
+
+      setReplies(slug, enrichedReplies);
+      return enrichedReplies;
+    },
+    enabled: !!slug,
+  });
+
+  // ---------------- TOOLTIP INIT ----------------
+  useEffect(() => {
+    if (!(window as any).bootstrap) return;
+    const tooltipTriggerList = document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]',
+    );
+    tooltipTriggerList.forEach((el) => {
+      new (window as any).bootstrap.Tooltip(el);
+    });
+  }, [replies]);
 
   // ---------------- POST REPLY ----------------
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuth) return navigate("/login");
-    if (!replyContent.trim()) return;
+    if (!replyContent.trim() || !slug) return;
 
     setSubmitting(true);
     try {
-      const res = await API.post(`/threads/${slug}/replies`, {
-        content: replyContent,
+      const res = await fetch(`/api/threads/${slug}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ content: replyContent }),
       });
-      setReplies([...replies, res.data]);
+      if (!res.ok) throw new Error("Failed to post reply");
+      const newReply: Reply = await res.json();
+      addReply(slug, newReply);
       setReplyContent("");
     } catch (err) {
-      console.error("Error posting reply:", err);
+      console.error(err);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ---------------- ACCEPT BEST COMMENT ----------------
+  const handleAcceptBest = async (commentId: string) => {
+    if (!slug || !commentId) return;
+    try {
+      const res = await fetch(`/api/comments/${commentId}/accept`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to accept comment");
+
+      // Update local Zustand state immediately
+      setReplies(
+        slug,
+        replies.map((c) => ({
+          ...c,
+          isBest: c._id === commentId,
+        })),
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // ---------------- UTILITIES ----------------
-  const getUserInitials = (name: string) =>
+  const getUserInitials = (name?: string) =>
     name
       ? name
           .split(" ")
@@ -111,29 +137,21 @@ export default function ThreadDetail() {
           .substring(0, 2)
       : "?";
 
-  const formatDate = (date: string) =>
-    new Date(date).toLocaleString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const formatDate = (date?: string) =>
+    date
+      ? new Date(date).toLocaleString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Unknown";
 
-  const timeAgo = (date: string) => {
-    const now = new Date();
-    const past = new Date(date);
-    const diff = Math.floor((now.getTime() - past.getTime()) / 1000);
-    if (diff < 60) return "just now";
-    if (diff < 3600)
-      return `${Math.floor(diff / 60)} minute${diff / 60 > 1 ? "s" : ""} ago`;
-    if (diff < 86400)
-      return `${Math.floor(diff / 3600)} hour${diff / 3600 > 1 ? "s" : ""} ago`;
-    return `${Math.floor(diff / 86400)} day${diff / 86400 > 1 ? "s" : ""} ago`;
-  };
+  const timeAgo = (date?: string) => (date ? dayjs(date).fromNow() : "unknown");
 
-  // ---------------- LOADING & ERROR ----------------
-  if (loadingThread) {
+  // ---------------- LOADING ----------------
+  if (isFetchingOne || !currentThread) {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.loader}>
@@ -144,27 +162,12 @@ export default function ThreadDetail() {
     );
   }
 
-  if (!thread) {
-    return (
-      <div className={styles.errorContainer}>
-        <div className={styles.errorCard}>
-          <span className={styles.errorIcon}>🔍</span>
-          <h2>Thread Not Found</h2>
-          <p>
-            The thread you're looking for doesn't exist or has been removed.
-          </p>
-          <Link to="/" className={styles.backButton}>
-            ← Back to Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const thread = currentThread;
 
   // ---------------- JSX ----------------
   return (
     <div className={styles.container}>
-      {/* Back navigation */}
+      {/* Back navigation & breadcrumbs */}
       <div className={styles.backNav}>
         <Link to="/" className={styles.backLink}>
           ← Back to Conversations
@@ -172,11 +175,11 @@ export default function ThreadDetail() {
         <div className={styles.breadcrumb}>
           <Link to="/categories">Categories</Link>
           <span>›</span>
-          <Link to={`/categories/${thread.category.slug}/threads`}>
-            {thread.category.name}
+          <Link to={`/categories/${thread.category?.slug || ""}/threads`}>
+            {thread.category?.name || "Unknown"}
           </Link>
           <span>›</span>
-          <span className={styles.current}>{thread.title}</span>
+          <span className={styles.current}>{thread.title || "Unknown"}</span>
         </div>
       </div>
 
@@ -184,21 +187,23 @@ export default function ThreadDetail() {
       <div className={styles.threadCard}>
         <div className={styles.threadHeader}>
           <div className={styles.category}>
-            <span className={styles.categoryBadge}>{thread.category.name}</span>
+            <span className={styles.categoryBadge}>
+              {thread.category?.name || "Unknown"}
+            </span>
           </div>
-          <h1 className={styles.threadTitle}>{thread.title}</h1>
-
+          <h1 className={styles.threadTitle}>{thread.title || "Untitled"}</h1>
           <div className={styles.threadMeta}>
             <div className={styles.author}>
               <div className={styles.avatar}>
-                {getUserInitials(thread.user.name)}
+                {getUserInitials(thread.user?.name)}
               </div>
               <div className={styles.authorInfo}>
-                <span className={styles.authorName}>{thread.user.name}</span>
+                <span className={styles.authorName}>
+                  {thread.user?.name || "Unknown"}
+                </span>
                 <span className={styles.authorBadge}>OP</span>
               </div>
             </div>
-
             <div className={styles.metaStats}>
               <div className={styles.metaItem}>
                 <span>📅</span>
@@ -212,36 +217,20 @@ export default function ThreadDetail() {
                   <span>{thread.views} views</span>
                 </div>
               )}
-              {thread.replies !== undefined && (
+              {Array.isArray(thread.replies) && (
                 <div className={styles.metaItem}>
                   <span>💬</span>
-                  <span>{thread.replies} replies</span>
+                  <span>{thread.replies.length} replies</span>
                 </div>
               )}
             </div>
           </div>
         </div>
-
         <div className={styles.threadContent}>
           <div
             className={styles.contentBody}
-            dangerouslySetInnerHTML={{ __html: thread.content }}
+            dangerouslySetInnerHTML={{ __html: thread.content || "" }}
           />
-        </div>
-
-        <div className={styles.threadActions}>
-          <button className={styles.actionButton}>
-            <span>👍</span>Like
-          </button>
-          <button className={styles.actionButton}>
-            <span>💬</span>Reply
-          </button>
-          <button className={styles.actionButton}>
-            <span>🔗</span>Share
-          </button>
-          <button className={styles.actionButton}>
-            <span>📌</span>Save
-          </button>
         </div>
       </div>
 
@@ -270,10 +259,7 @@ export default function ThreadDetail() {
           {isAuth ? (
             <form onSubmit={handleReplySubmit} className={styles.replyForm}>
               <div className={styles.replyFormHeader}>
-                <div className={styles.replyAvatar}>
-                  {getUserInitials(user?.name || "User")}
-                </div>
-                <span className={styles.replyName}>{user?.name || "User"}</span>
+                <span>Write a comment</span>
               </div>
               <textarea
                 className={styles.replyInput}
@@ -311,39 +297,35 @@ export default function ThreadDetail() {
           <div className={styles.repliesList}>
             {loadingReplies ? (
               <p>Loading replies...</p>
-            ) : replies.length === 0 ? (
-              <div className={styles.noReplies}>
-                <span className={styles.noRepliesIcon}>💭</span>
-                <h3>No replies yet</h3>
-                <p>Be the first to share your thoughts!</p>
-              </div>
             ) : (
-              replies.map((reply) => (
-                <div key={reply.id} className={styles.replyCard}>
-                  <div className={styles.replyHeader}>
-                    <div className={styles.replyAuthor}>
-                      <div className={styles.replyAvatar}>
-                        {getUserInitials(reply.user.name)}
-                      </div>
-                      <div className={styles.replyAuthorInfo}>
-                        <span className={styles.replyAuthorName}>
-                          {reply.user.name}
-                        </span>
-                        <span className={styles.replyTime}>
-                          {timeAgo(reply.created_at)}
-                        </span>
-                      </div>
-                    </div>
-                    {reply.likes !== undefined && (
-                      <button className={styles.replyLikeButton}>
-                        <span>👍</span>
-                        {reply.likes}
+              (() => {
+                const sortedReplies = [
+                  ...replies.filter((r) => r.isBest),
+                  ...replies.filter((r) => !r.isBest),
+                ];
+
+                return sortedReplies.map((c) => (
+                  <div
+                    key={c._id}
+                    className={c.isBest ? styles.bestComment : ""}
+                  >
+                    <CommentTree
+                      comment={c}
+                      level={0}
+                      threadSlug={slug || ""}
+                      // Pass accept handler for thread author
+                    />
+                    {isAuth && thread.user?.id === user?.id && !c.isBest && (
+                      <button
+                        className={styles.acceptButton}
+                        onClick={() => handleAcceptBest(c._id)}
+                      >
+                        Accept as Best Answer
                       </button>
                     )}
                   </div>
-                  <div className={styles.replyContent}>{reply.content}</div>
-                </div>
-              ))
+                ));
+              })()
             )}
           </div>
         </div>
@@ -357,15 +339,17 @@ export default function ThreadDetail() {
             <div className={styles.detailsGrid}>
               <div className={styles.detailItem}>
                 <span className={styles.detailLabel}>Created by</span>
-                <span className={styles.detailValue}>{thread.user.name}</span>
+                <span className={styles.detailValue}>
+                  {thread.user?.name || "Unknown"}
+                </span>
               </div>
               <div className={styles.detailItem}>
                 <span className={styles.detailLabel}>Category</span>
                 <Link
-                  to={`/categories/${thread.category.slug}/threads`}
+                  to={`/categories/${thread.category?.slug || ""}/threads`}
                   className={styles.detailLink}
                 >
-                  {thread.category.name}
+                  {thread.category?.name || "Unknown"}
                 </Link>
               </div>
               <div className={styles.detailItem}>

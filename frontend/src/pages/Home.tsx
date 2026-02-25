@@ -1,25 +1,20 @@
 import { Link } from "react-router-dom";
 import { useStore } from "../store/useStore";
-import { useState } from "react";
-import API from "../api";
+import { useState, useEffect } from "react";
 import styles from "../styles/Home.module.css";
+import { Thread, useThreadStore } from "../store/useThreadStore";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 import { useQuery } from "@tanstack/react-query";
+import API from "../api";
 
-interface Thread {
+interface ActiveUser {
   id: number;
-  title: string;
-  slug: string;
-  content: string;
-  created_at: string;
-  user: { id: number; name: string };
-  category: { id: string; name: string; slug: string };
-  reply_count?: number;
-  like_count?: number;
+  name: string;
+  postCount: number;
 }
 
 interface Category {
@@ -27,13 +22,7 @@ interface Category {
   name: string;
   slug: string;
   description?: string;
-}
-
-interface ActiveUser {
-  id: number;
-  name: string;
-  threads_count: number;
-  postCount: number;
+  threads_count?: number;
 }
 
 const Home = () => {
@@ -43,22 +32,15 @@ const Home = () => {
     "conversations" | "help" | "categories"
   >("conversations");
 
-  // Threads query
-  const { data: threadsData, isLoading: threadsLoading } = useQuery({
-    queryKey: ["threads", page],
-    queryFn: async () => {
-      const res = await API.get(`/threads/recent?page=${page}`);
-      return res.data;
-    },
-    keepPreviousData: true,
-    staleTime: 1000 * 60 * 2,
-    enabled: activeTab === "conversations",
-  });
+  const { threads, setThreads, fetchThreads, lastPage } = useThreadStore();
 
-  const threads = threadsData?.data || [];
-  const lastPage = threadsData?.last_page || 1;
+  useEffect(() => {
+    if (activeTab === "conversations") {
+      fetchThreads(page);
+    }
+  }, [page, activeTab]);
 
-  // Active users query
+  // --- ACTIVE USERS QUERY ---
   const { data: usersData } = useQuery({
     queryKey: ["activeUsers"],
     queryFn: async () => {
@@ -70,10 +52,9 @@ const Home = () => {
     },
     staleTime: 1000 * 60 * 5,
   });
-
   const activeUsers = usersData || [];
 
-  // Categories query
+  // --- CATEGORIES QUERY ---
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
@@ -82,24 +63,24 @@ const Home = () => {
     },
     enabled: activeTab === "categories",
   });
-
   const categories = categoriesData || [];
 
-  const getUserInitials = (name: string) => {
-    if (!name) return "?";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
-  };
+  // --- UTILITIES ---
+  const getUserInitials = (name: string) =>
+    name
+      ? name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .substring(0, 2)
+      : "?";
 
   const timeAgo = (date: string) => (date ? dayjs(date).fromNow() : "unknown");
 
   return (
     <div className={styles.container}>
-      {/* Header */}
+      {/* HEADER */}
       <header className={styles.header}>
         <h1 className={styles.logo}># Typeforum</h1>
         <div className={styles.tabs}>
@@ -108,15 +89,10 @@ const Home = () => {
             onClick={() => {
               setActiveTab("conversations");
               setPage(1);
+              setThreads([]);
             }}
           >
             Conversations
-          </button>
-          <button
-            className={`${styles.tab} ${activeTab === "help" ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab("help")}
-          >
-            Help others
           </button>
           <button
             className={`${styles.tab} ${activeTab === "categories" ? styles.activeTab : ""}`}
@@ -125,34 +101,16 @@ const Home = () => {
             Categories
           </button>
         </div>
-        {isAuth && (
-          <Link to="/threads/create" className={styles.createButton}>
-            + New Thread
-          </Link>
-        )}
       </header>
 
-      {/* Main content */}
+      {/* MAIN GRID */}
       <div className={styles.mainGrid}>
         <main className={styles.mainContent}>
-          {/* Conversations tab */}
+          {/* CONVERSATIONS */}
           {activeTab === "conversations" && (
             <>
               <div className={styles.threadList}>
-                {threadsLoading ? (
-                  // Skeleton loaders
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className={styles.threadCard}>
-                      <div className={styles.avatarSkeleton} />
-                      <div className={styles.threadContent}>
-                        <div className={styles.metaSkeleton} />
-                        <div className={styles.titleSkeleton} />
-                        <div className={styles.previewSkeleton} />
-                        <div className={styles.footerSkeleton} />
-                      </div>
-                    </div>
-                  ))
-                ) : threads.length === 0 ? (
+                {threads.length === 0 ? (
                   <div className={styles.emptyState}>
                     <p>No conversations yet.</p>
                     {isAuth && (
@@ -194,10 +152,14 @@ const Home = () => {
                           </p>
                           <div className={styles.threadFooter}>
                             <span className={styles.replyCount}>
-                              {thread.reply_count ?? 0} replies
+                              {thread.comment_count ?? 0}{" "}
+                              {thread.comment_count === 1
+                                ? "comment"
+                                : "comments"}
                             </span>
                             <span className={styles.likeCount}>
-                              {thread.like_count ?? 0} likes
+                              {thread.like_count ?? 0}{" "}
+                              {thread.like_count === 1 ? "vote" : "votes"}
                             </span>
                             <span className={styles.timeAgo}>
                               {timeAgo(thread.created_at)}
@@ -210,7 +172,7 @@ const Home = () => {
                 )}
               </div>
 
-              {/* Pagination */}
+              {/* PAGINATION */}
               {threads.length > 0 && (
                 <div className={styles.pagination}>
                   <button
@@ -235,15 +197,7 @@ const Home = () => {
             </>
           )}
 
-          {/* Help tab */}
-          {activeTab === "help" && (
-            <div className={styles.helpCenter}>
-              <h3>🤝 Help others</h3>
-              <p>This section is under construction. Check back soon!</p>
-            </div>
-          )}
-
-          {/* Categories tab */}
+          {/* CATEGORIES */}
           {activeTab === "categories" && (
             <div className={styles.categoryGrid}>
               {categories.length === 0
@@ -266,6 +220,11 @@ const Home = () => {
                             {category.description}
                           </p>
                         )}
+                        <div className={styles.categoryMeta}>
+                          <span className={styles.threadCount}>
+                            🧵 {category.threads_count ?? 0} threads
+                          </span>
+                        </div>
                         <span className={styles.categoryArrow}>→</span>
                       </article>
                     </Link>
@@ -274,7 +233,7 @@ const Home = () => {
           )}
         </main>
 
-        {/* Sidebar */}
+        {/* SIDEBAR */}
         <aside className={styles.sidebar}>
           <h3 className={styles.sidebarTitle}>Most active users</h3>
           <div className={styles.userList}>
@@ -302,25 +261,6 @@ const Home = () => {
                   </div>
                 ))}
           </div>
-          <div className={styles.sidebarFooter}>
-            <Link to="/users" className={styles.viewAllLink}>
-              View all users →
-            </Link>
-          </div>
-
-          {!isAuth && (
-            <div className={styles.loginPrompt}>
-              <p>Join the conversation</p>
-              <div className={styles.promptButtons}>
-                <Link to="/login" className={styles.loginButton}>
-                  Log in
-                </Link>
-                <Link to="/register" className={styles.registerButton}>
-                  Sign up
-                </Link>
-              </div>
-            </div>
-          )}
         </aside>
       </div>
     </div>

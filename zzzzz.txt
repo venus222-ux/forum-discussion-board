@@ -1,29 +1,55 @@
-Sunt la Sprint 1. Am facut partea de Backend:
-Model, migrations, controller, route, db seed
-Next: 
-Sprint 3:
-“add comments system” → nested replies
-“add voting system” → upvote/downvote
 
-Zustand, optimizari???
-
-
-Pages:  
-Home, details, single category threads, user profile, 
-search page, dashboard. 
-....
-
-User: 
-crud intrebari, active/draft.
-Comenteaza la el sau la altii
-poate da like la un raspuns
-poate adauga o intrebare la preferinte
-poate raporta un raspuns
-real time notify cand cineva rasp la ce ai intrebat
+NEXT 
+Score
+Report Comment
+Pusher notify on new comments and replays
+Advanced: AI MODERATE COMMENTS
+✅ Dashboard User/Moderate/Admin
 
 
-user vede in dashboard: 
-unde a comentat si cate
-unde a dat likuri si cate
 
-User Points?
+Zustand, optimizari, react query???
+
+Pagini:
+login/logout/forget pass/Profile
+Home: Home.tsx
+Details: ThreadDeatils.tsx
+Single Category Thread List: ThreadList.tsx
+All Category list: Categories.tsx
+User/Moderator/Admin Dashboard
+
+Componente:
+Navbar
+
+
+
+DOME:
+Backend:
+✅ Prevent spam (1 vote per user enforced properly)
+✅ Toggle vote (upvote → remove)
+✅ Score system (upvotes - downvotes)
+
+FRONTEND:
+✅ React recursive comment component (Zustand + TanStack)
+✅ Optimistic UI for replies
+✅ Real-time updates with Pusher
+✅ Expand/collapse tree in React (Zustand + recursion)
+✅ Upvote/downvote system with optimistic UI
+
+
+🧮 3. REPUTATION SYSTEM (LIKE STACKOVERFLOW)
+
+| Action            | Points |
+| ----------------- | ------ |
+| Upvote on comment | +10    |
+| Downvote          | -2     |
+| Accepted answer   | +15    |
+| Question asked    | +2     |
+
+
+✅ Only thread author can accept an answer
+✅ Best answer gets visual highlight (green border/bg)
+✅ Best answer appears at the top
+✅ "Best Answer" badge is displayed
+✅ Reputation rewards for accepted answers
+✅ Author gets reputation for accepting

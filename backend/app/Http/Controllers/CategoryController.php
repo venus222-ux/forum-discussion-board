@@ -9,9 +9,13 @@ use Illuminate\Support\Str;
 class CategoryController extends Controller
 {
     // List all categories with children
-    public function index() {
-        return response()->json(Category::with('children')->get());
-    }
+   public function index() {
+  $categories = Category::withCount('threads')
+    ->orderByDesc('threads_count')
+    ->get();
+
+  return response()->json($categories); // ✅ REQUIRED
+}
 
     // Show single category by slug
     public function show($slug) {

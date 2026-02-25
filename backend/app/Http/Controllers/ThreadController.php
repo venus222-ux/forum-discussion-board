@@ -17,22 +17,35 @@ class ThreadController extends Controller
             ->paginate(10);
     }
 
-    public function recent()
+    // app/Http/Controllers/ThreadController.php
+public function recent(Request $request)
 {
+    // Read page number from query string, default 1
+    $page = $request->query('page', 1);
+
     $threads = Thread::with(['user:id,name', 'category:id,name,slug'])
         ->latest('created_at')
-        ->paginate(10); // ✅ real pagination
+        ->paginate(10, ['*'], 'page', $page); // ensure Laravel uses correct page
 
-    // format dates
+    // Transform threads
     $threads->getCollection()->transform(function ($thread) {
         $thread->created_at = $thread->created_at?->toIso8601String();
+        $thread->comment_count = $thread->comment_count ?? 0;
+        $thread->upvotes = $thread->upvotes ?? 0;
+        $thread->downvotes = $thread->downvotes ?? 0;
+        $thread->like_count = $thread->upvotes - $thread->downvotes;
         return $thread;
     });
 
-    return response()->json($threads, 200);
+    // Return proper JSON
+    return response()->json([
+        'data' => $threads->items(),        // threads array
+        'current_page' => $threads->currentPage(),
+        'last_page' => $threads->lastPage(),
+        'per_page' => $threads->perPage(),
+        'total' => $threads->total(),
+    ], 200);
 }
-
-
 
 
 
@@ -46,11 +59,15 @@ class ThreadController extends Controller
     }
 
 
+
+
     // Show single thread by slug
     public function show($slug) {
         $thread = Thread::with('user', 'category')
             ->where('slug', $slug)
             ->firstOrFail();
+
+        $thread->best_comment_id;
 
         return response()->json($thread);
     }

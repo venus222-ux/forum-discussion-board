@@ -58,6 +58,19 @@ class Thread extends Model
         static::restored(function ($thread) {
             $thread->category()->increment('thread_count');
         });
+
+        static::created(function ($thread) {
+          $thread->category()->increment('thread_count');
+        });
+
+        static::deleted(function ($thread) {
+           $thread->category()->decrement('thread_count');
+        });
+
+        static::restored(function ($thread) {
+           $thread->category()->increment('thread_count');
+        });
+
     }
 
     public static function generateUniqueSlug($title, $ignoreId = null)

@@ -118,7 +118,7 @@ return [
           'driver'   => 'mongodb',
           'host'     => env('DB_MONGO_HOST', '127.0.0.1'),
           'port'     => env('DB_MONGO_PORT', 27017),
-          'database' => env('DB_MONGO_DATABASE', 'laravel_forum_discussion_board'),
+          'database' => env('DB_MONGO_DATABASE', 'forum_comments'), 
           'username' => env('DB_MONGO_USERNAME', ''),
           'password' => env('DB_MONGO_PASSWORD', ''),
           'options'  => [

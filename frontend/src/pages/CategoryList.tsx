@@ -1,48 +1,68 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import API from "../api";
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  description?: string;
-  children?: Category[];
-}
+import { useCategories } from "../store/useCategoryStore";
+import styles from "../styles/CategoryList.module.css";
 
 export default function CategoryList() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: categories, isLoading, error } = useCategories();
 
-  useEffect(() => {
-    API.get("/categories")
-      .then((res) => setCategories(res.data))
-      .finally(() => setLoading(false));
-  }, []);
+  // Loading skeletons (mimic card layout)
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <h2 className={styles.title}>📂 Categories</h2>
+        <div className={styles.grid}>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className={styles.skeletonCard}>
+              <div className={styles.skeletonLine} style={{ width: "60%" }} />
+              <div className={styles.skeletonBadge} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  if (loading) return <div>Loading categories...</div>;
+  // Error state
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.errorAlert}>
+          <span className={styles.errorIcon}>⚠️</span>
+          <span>Failed to load categories. Please try again later.</span>
+        </div>
+      </div>
+    );
+  }
 
+  // Empty state
+  if (!categories || categories.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.infoAlert}>
+          <span className={styles.infoIcon}>ℹ️</span>
+          <span>No categories found.</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Success – render categories
   return (
-    <div className="container mt-4">
-      <h2>📂 Categories</h2>
-      <ul className="list-group mt-3">
+    <div className={styles.container}>
+      <h2 className={styles.title}>📂 Categories</h2>
+      <div className={styles.grid}>
         {categories.map((cat) => (
-          <li key={cat.id} className="list-group-item">
-            <Link to={`/categories/${cat.slug}/threads`}>{cat.name}</Link>
-            {cat.children && cat.children.length > 0 && (
-              <ul className="list-group mt-2 ms-3">
-                {cat.children.map((child) => (
-                  <li key={child.id} className="list-group-item">
-                    <Link to={`/categories/${child.slug}/threads`}>
-                      {child.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
+          <div key={cat.id} className={styles.card}>
+            <Link
+              to={`/categories/${cat.slug}/threads`}
+              className={styles.cardLink}
+            >
+              {cat.name}
+            </Link>
+            <span className={styles.badge}>{cat.threads_count ?? 0}</span>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

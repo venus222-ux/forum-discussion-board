@@ -12,9 +12,13 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Broadcast;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 Broadcast::routes([
     'middleware' => ['auth.jwt'],
 ]);
@@ -54,16 +58,23 @@ Route::middleware('auth.jwt')->group(function () {
     Route::post('/threads/{threadId}/comments', [CommentController::class, 'store']);
 <<<<<<< HEAD
 
+<<<<<<< HEAD
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     //Notify
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/clear', [NotificationController::class, 'clear']);
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     //Comments
     Route::get('/comments/{parentId}/replies', [CommentController::class, 'loadReplies']);
     //Add endpoint: mark best answer
@@ -75,14 +86,20 @@ Route::middleware('auth.jwt')->group(function () {
     // fetch replies of a comment
     Route::get('/comments/{commentId}/replies', [CommentController::class, 'getReplies']);
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 
       // User can flag a comment
     Route::post('/comments/{commentId}/flag', [ModerationController::class, 'flag']);
 
+<<<<<<< HEAD
 =======
       // User can flag a comment
     Route::post('/comments/{commentId}/flag', [ModerationController::class, 'flag']);
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     // Categories (admin only)
     Route::middleware('role:admin')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store']);
@@ -98,8 +115,11 @@ Route::middleware('auth.jwt')->group(function () {
     });
 <<<<<<< HEAD
 
+<<<<<<< HEAD
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     Route::middleware('role:moderator')->group(function () {
       Route::get('/moderation/flags', [ModerationController::class, 'listFlags']);
       Route::post('/moderation/{commentId}/approve', [ModerationController::class, 'approve']);
@@ -107,15 +127,21 @@ Route::middleware('auth.jwt')->group(function () {
       Route::post('/moderation/{commentId}/official-reply', [ModerationController::class, 'officialReply']);
    });
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 
    Route::middleware('role:admin')->group(function () {
         Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
     });
 
 
+<<<<<<< HEAD
 =======
    Route::middleware('role:admin')->group(function () {
         Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
     });
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 });

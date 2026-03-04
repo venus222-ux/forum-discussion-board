@@ -7,9 +7,12 @@ use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Comment;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 use Laravel\Scout\Searchable;  // Add this
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 
 class Thread extends Model
 {
@@ -34,6 +37,7 @@ class Thread extends Model
     ];
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     // Add this method to define searchable data (exclude _id if present)
     public function toSearchableArray()
@@ -48,6 +52,8 @@ class Thread extends Model
     }
 
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     // ---------------- Slug + boot logic ----------------
     protected static function boot()
     {
@@ -77,25 +83,36 @@ class Thread extends Model
     }
 <<<<<<< HEAD
 
+<<<<<<< HEAD
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     // ---------------- Relationships ----------------
     public function user(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class);
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     public function category(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Category::class);
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     // ---------------- MongoDB-safe comments ----------------
     public function fetchComments()
     {
@@ -106,17 +123,25 @@ class Thread extends Model
             ->orderBy('createdAt', 'asc')
             ->get();
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
         // Convert _id fields to string for frontend
         return $comments->map(function ($c) {
             $cArr = $c->toArray();
             $cArr['_id'] = (string) $c->_id;
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
             if (!empty($cArr['children'])) {
                 $cArr['children'] = collect($cArr['children'])->map(function ($child) {
                     $child['_id'] = (string) $child['_id'];
@@ -124,9 +149,13 @@ class Thread extends Model
                 })->toArray();
             }
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
             return $cArr;
         })->toArray();
     }

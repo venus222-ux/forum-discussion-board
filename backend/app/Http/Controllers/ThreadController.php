@@ -60,12 +60,17 @@ class ThreadController extends Controller
 
     // Show single thread by slug
 <<<<<<< HEAD
+<<<<<<< HEAD
 public function show($slug)
 {
 =======
    public function show($slug)
    {
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+public function show($slug)
+{
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
     $thread = Thread::with(['user:id,name', 'category:id,name,slug'])
         ->where('slug', $slug)
         ->firstOrFail();
@@ -75,10 +80,14 @@ public function show($slug)
 
     return response()->json($thread);
 <<<<<<< HEAD
+<<<<<<< HEAD
 }
 =======
    }
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+}
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 
     // Create thread — user only
     public function store(Request $request) {

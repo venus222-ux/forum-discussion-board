@@ -94,10 +94,14 @@ const Home = () => {
   });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   // --- SORT USERS BY POINTS (postCount + reputation) ---
 =======
   // --- SORT USERS BY POINTS ---
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+  // --- SORT USERS BY POINTS (postCount + reputation) ---
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
   interface ActiveUserWithPoints extends ActiveUser {
     points: number;
   }
@@ -204,10 +208,14 @@ const Home = () => {
                   threads.map((thread: Thread, index) => (
                     <Link
 <<<<<<< HEAD
+<<<<<<< HEAD
                       key={`${thread.id}-${thread.slug}-${index}`} // ✅ unique key
 =======
                       key={`${thread.id}-${thread.slug}-${index}`}
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+                      key={`${thread.id}-${thread.slug}-${index}`} // ✅ unique key
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
                       to={`/threads/${thread.slug}`}
                       className={styles.threadLink}
                     >

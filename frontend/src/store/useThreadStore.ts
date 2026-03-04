@@ -71,6 +71,7 @@ interface ThreadStore {
   markBestReply: (slug: string, commentId: string) => void;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   // ---------------- SEARCH ----------------
   isSearching: boolean;
@@ -78,6 +79,8 @@ interface ThreadStore {
   fetchSearch: (page: number, query: string) => Promise<void>;
 
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
   reset: () => void;
 }
 
@@ -93,9 +96,12 @@ export const useThreadStore = create<ThreadStore>((set, get) => ({
   isLoading: false,
   error: null,
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   isSearching: false,
 >>>>>>> b0354f2 (add the button choose best answer buy the author of the thread)
+=======
+>>>>>>> ae5dd85d9b441ffddbf18e313884df29e585a949
 
   // ---------------- THREADS ----------------
   setThreads: (threads) => set({ threads }),
